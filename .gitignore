@@ -1,0 +1,18 @@
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### VS Code ###
+.vscode/
+
+### macOS ###
+.DS_Store
+
+### Claude Code ###
+.claude/settings.local.json
+
+### 環境変数 ###
+.env

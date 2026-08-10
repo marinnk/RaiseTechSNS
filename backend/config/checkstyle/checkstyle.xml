@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <module name="LineLength">
+        <property name="max" value="150"/>
+    </module>
+    <module name="FileTabCharacter"/>
+
+    <module name="TreeWalker">
+        <module name="UnusedImports"/>
+        <module name="RedundantImport"/>
+        <module name="AvoidStarImport"/>
+        <module name="OneTopLevelClass"/>
+        <module name="EqualsHashCode"/>
+        <module name="EmptyBlock">
+            <property name="option" value="text"/>
+        </module>
+        <module name="NeedBraces"/>
+
+        <module name="TypeName"/>
+        <!-- テストメソッド名は「対象_条件_期待結果」の日本語併記で書く方針のため、
+             通常のcamelCaseに加えて英数字・アンダースコア・日本語を許可する -->
+        <module name="MethodName">
+            <property name="format" value="^[\p{L}_][\p{L}0-9_]*$"/>
+        </module>
+        <module name="MemberName"/>
+        <module name="ConstantName"/>
+        <module name="ParameterName"/>
+        <module name="LocalVariableName"/>
+    </module>
+</module>

@@ -53,18 +53,24 @@ Claude Codeがこのリポジトリで作業する際に必ず守るルールで
    git branch -d <作業ブランチ名>
    ```
 
-## コーディング規約（実装着手後に適用）
+## コーディング規約
 
-現時点ではドキュメント整備のみでコードは存在しない。技術スタックは[基本設計書](docs/basic-design.md)の通り、姉妹プロジェクト[TaskManagement](../TaskManagement)と同一（Java 25 / Spring Boot 4.1.0 / React 19 / PostgreSQL 16 等）とする。実装に着手する際は、TaskManagementに準じて以下を適用する。
+技術スタックは[基本設計書](docs/basic-design.md)の通り、姉妹プロジェクト[TaskManagement](../TaskManagement)と同一（Java 25 / Spring Boot 4.1.0 / React 19 / PostgreSQL 16 等）。TaskManagementに準じて以下を適用する。
 
 - 新しい機能を実装する際は、対応する自動テストも合わせて実装する
-- PRを作成する前に、フロントエンド・バックエンドのlint/testを実行し、エラーが無いことを確認する
+  - フロントエンド：Vitest + React Testing Library でコンポーネント・ロジックのテストを書く（`npm run test`）
+  - バックエンド：JUnit + Mockito でサービス層の単体テストを書く（`./gradlew test`）
+- PRを作成する前に、フロントエンド（`npm run lint` / `npm run test`）・バックエンド（`./gradlew test` を含む `./gradlew check`）を実行し、エラーが無いことを確認する
 - コンポーネント・関数は単一の責務に絞る（データ取得・状態管理・画面表示を1ファイルに詰め込まない）
-- ポートはTaskManagementと同様に固定する想定（バックエンド8080・フロントエンド5173・DB5432）。実装スキャフォールド後に本節へ確定事項として追記する。
+  - フロントエンド：APIとの通信・データ更新のロジックはカスタムフック（`useXxx`）に分離し、コンポーネントは受け取ったデータをどう表示するかに専念させる
+- DBのテーブル定義変更は、`ddl-auto`任せではなく`backend/src/main/resources/db/migration/`配下に新しいバージョン番号のFlywayマイグレーションファイルとして追加する
 
 ## 動作確認のためにサーバーを起動する場合
 
-`backend/`・`frontend/`ディレクトリと実装がまだ存在しないため、起動手順スキル（`run-app`）・品質チェックスキル（`quality-check`）は未作成です。実装スキャフォールドが揃った時点で、TaskManagementの同名スキル（`.claude/skills/run-app/SKILL.md`・`.claude/skills/quality-check/SKILL.md`）を参考に作成してください。
+バックエンド・フロントエンドの起動手順は `.claude/skills/run-app/SKILL.md` を参照してください。特に以下は必ず守ること。
+
+- バックエンドは必ず **8080**、フロントエンドは必ず **5173**、DB（PostgreSQL）は必ず **5432** で起動する。ポートが競合したときに、別のポートで起動された状態のまま「動いている」と判断してはいけません。
+- ポート競合が起きた場合は、そのポートを使っているプロセスを `lsof -ti:<port> -sTCP:LISTEN | xargs -r kill` 等で必ず停止してから、既定のポートで起動し直してください。
 
 ## ドキュメント執筆スタイル
 
