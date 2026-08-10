@@ -4,6 +4,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Spring MVCレベルのCORS設定。
+ *
+ * <p>Spring Securityが有効な現在、{@code /api/**} へのリクエストは実際には
+ * {@link SecurityConfig#corsConfigurationSource()} のCORS設定（Security Filter Chain内）が先に適用される。
+ * このクラスの設定は、Security Filter Chainを経由しないハンドラー（将来追加され得るもの）向けの保険として残す。
+ * 2箇所の設定がずれないよう、変更時は両方を揃えること。
+ */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -11,6 +19,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins("http://localhost:5173")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE");
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+                .allowCredentials(true);
     }
 }
