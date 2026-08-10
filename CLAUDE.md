@@ -89,6 +89,8 @@ README、`docs/` 配下などのMarkdownドキュメントを書く・編集す�
 
   例: `- 言語：Java 25`
 
+- **ER図はMermaid記法（` ```mermaid `＋`erDiagram`）で書きます。** GitHub・VSCodeのプレビューでそのまま図として描画されるため、テキストの箇条書きやASCIIアートより優先してください。
+
 - **改訂履歴は「バージョン / 日付」を太字の見出し行にし、次の行に変更内容を書きます。**
 - **要件定義書（`docs/requirements.md`）・機能要件（`docs/functional-requirements.md`）・画面設計（`docs/screen-design.md`）は非エンジニアも読む想定のため、技術用語（フレームワーク名、テーブル名、HTTPメソッド等）を書かないこと。** それらは`docs/basic-design.md`（基本設計書）に書きます。
 

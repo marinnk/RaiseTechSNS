@@ -13,6 +13,9 @@
 **1.2 / 2026-08-10**  
 認証方式をJWTに確定。画像の保存先をS3に確定。投稿文字数の上限を280文字に確定。1投稿あたりの画像枚数を最大4枚に変更し、データベース設計に投稿画像テーブルを追加
 
+**1.3 / 2026-08-10**  
+ER図をMermaid記法（erDiagram）に変更
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -126,18 +129,63 @@
 - UNIQUE制約：(follower_id, followee_id) の組み合わせ（同じ相手を2回フォローできないようにする）
 - follower_id と followee_id が同じ値（自分自身のフォロー）にならないよう制約する
 
-### ER図（概略）
+### ER図
 
-```
-users (1) --- (多) posts
-users (1) --- (多) comments
-users (1) --- (多) likes
-posts (1) --- (多) post_images
-posts (1) --- (多) comments
-posts (1) --- (多) likes
+```mermaid
+erDiagram
+    USERS ||--o{ POSTS : "投稿する"
+    USERS ||--o{ COMMENTS : "コメントする"
+    USERS ||--o{ LIKES : "いいねする"
+    USERS ||--o{ FOLLOWS : "フォローする（follower_id）"
+    USERS ||--o{ FOLLOWS : "フォローされる（followee_id）"
+    POSTS ||--o{ POST_IMAGES : "画像を持つ"
+    POSTS ||--o{ COMMENTS : "コメントされる"
+    POSTS ||--o{ LIKES : "いいねされる"
 
-users (1) --- (多) follows [follower_id]
-users (1) --- (多) follows [followee_id]
+    USERS {
+        bigint id PK
+        varchar username UK
+        varchar email UK
+        varchar password_hash
+        varchar display_name
+        varchar bio
+        varchar avatar_url
+        timestamp created_at
+        timestamp updated_at
+    }
+    POSTS {
+        bigint id PK
+        bigint user_id FK
+        varchar content
+        timestamp created_at
+        timestamp updated_at
+    }
+    POST_IMAGES {
+        bigint id PK
+        bigint post_id FK
+        varchar image_url
+        int display_order
+        timestamp created_at
+    }
+    COMMENTS {
+        bigint id PK
+        bigint post_id FK
+        bigint user_id FK
+        varchar content
+        timestamp created_at
+    }
+    LIKES {
+        bigint id PK
+        bigint post_id FK
+        bigint user_id FK
+        timestamp created_at
+    }
+    FOLLOWS {
+        bigint id PK
+        bigint follower_id FK
+        bigint followee_id FK
+        timestamp created_at
+    }
 ```
 
 - 1人のusersは複数のpostsを持つ
