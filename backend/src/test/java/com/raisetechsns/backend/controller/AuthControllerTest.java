@@ -50,7 +50,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("taro"))
                 .andExpect(jsonPath("$.email").value("taro@example.com"))
                 .andExpect(jsonPath("$.displayName").value("taro"))
-                .andExpect(cookie().exists("access_token"));
+                .andExpect(cookie().exists("access_token"))
+                .andExpect(cookie().exists("refresh_token"));
     }
 
     @Test
@@ -85,7 +86,8 @@ class AuthControllerTest {
                         .content(loginBody("login-ok@example.com", "password1")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("login-ok@example.com"))
-                .andExpect(cookie().exists("access_token"));
+                .andExpect(cookie().exists("access_token"))
+                .andExpect(cookie().exists("refresh_token"));
     }
 
     @Test
@@ -140,12 +142,89 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/logout").cookie(accessToken))
                 .andExpect(status().isNoContent())
-                .andExpect(cookie().maxAge("access_token", 0));
+                .andExpect(cookie().maxAge("access_token", 0))
+                .andExpect(cookie().maxAge("refresh_token", 0));
     }
 
     @Test
     void logout_未ログインだと401になる() throws Exception {
         mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logout_呼び出すとリフレッシュトークンも失効し後続のrefreshが401になる() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerBody("taro", "logout-refresh@example.com", "password1")));
+
+        var loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody("logout-refresh@example.com", "password1")))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie accessToken = loginResult.getResponse().getCookie("access_token");
+        Cookie refreshToken = loginResult.getResponse().getCookie("refresh_token");
+
+        // ブラウザはpath=/api/authにスコープされたrefresh_token Cookieも自動で送るため、
+        // テストでも両方のCookieを付けてリクエストする
+        mockMvc.perform(post("/api/auth/logout").cookie(accessToken, refreshToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/refresh").cookie(refreshToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_有効なリフレッシュトークンで新しいCookieとユーザー情報が返る() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerBody("taro", "refresh-ok@example.com", "password1")));
+
+        var loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody("refresh-ok@example.com", "password1")))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie refreshToken = loginResult.getResponse().getCookie("refresh_token");
+
+        mockMvc.perform(post("/api/auth/refresh").cookie(refreshToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("refresh-ok@example.com"))
+                .andExpect(cookie().exists("access_token"))
+                .andExpect(cookie().exists("refresh_token"));
+    }
+
+    @Test
+    void refresh_古いリフレッシュトークンはローテーション後は401になる() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerBody("taro", "refresh-rotate@example.com", "password1")));
+
+        var loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody("refresh-rotate@example.com", "password1")))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie refreshToken = loginResult.getResponse().getCookie("refresh_token");
+
+        mockMvc.perform(post("/api/auth/refresh").cookie(refreshToken))
+                .andExpect(status().isOk());
+
+        // ローテーション済みの古いトークンを再度使うと401になる
+        mockMvc.perform(post("/api/auth/refresh").cookie(refreshToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_リフレッシュトークンが無い場合は401になる() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_無効なリフレッシュトークンの場合は401になる() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh").cookie(new Cookie("refresh_token", "invalid-token")))
                 .andExpect(status().isUnauthorized());
     }
 }
