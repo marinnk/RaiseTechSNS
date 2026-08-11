@@ -23,7 +23,11 @@ export function LoginScreen({ onSubmit, onSwitchToSignup, submitting, error }: L
   return (
     <div className="centered-page">
       <h1 className="auth-title">RaiseTechSNS</h1>
-      {error && <div className="form-error">{error}</div>}
+      {error && (
+        <div className="form-error" role="alert">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="form-field">
           <label htmlFor="login-email">メールアドレス</label>

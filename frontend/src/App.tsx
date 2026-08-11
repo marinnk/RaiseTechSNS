@@ -7,8 +7,19 @@ import { LoginSuccessScreen } from './components/LoginSuccessScreen';
 type Screen = 'login' | 'signup';
 
 function App() {
-  const { user, sessionStatus, submitting, error, login, register, logout } = useAuth();
+  const { user, sessionStatus, submitting, error, login, register, logout, clearError } = useAuth();
   const [screen, setScreen] = useState<Screen>('login');
+
+  // ログイン⇔新規登録の切り替え時は、直前の画面で出ていたエラーを持ち越さない
+  const switchToSignup = () => {
+    clearError();
+    setScreen('signup');
+  };
+
+  const switchToLogin = () => {
+    clearError();
+    setScreen('login');
+  };
 
   if (sessionStatus === 'checking') {
     return (
@@ -26,7 +37,7 @@ function App() {
     return (
       <SignupScreen
         onSubmit={register}
-        onSwitchToLogin={() => setScreen('login')}
+        onSwitchToLogin={switchToLogin}
         submitting={submitting}
         error={error}
       />
@@ -36,7 +47,7 @@ function App() {
   return (
     <LoginScreen
       onSubmit={login}
-      onSwitchToSignup={() => setScreen('signup')}
+      onSwitchToSignup={switchToSignup}
       submitting={submitting}
       error={error}
     />

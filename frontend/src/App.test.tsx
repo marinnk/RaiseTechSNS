@@ -114,6 +114,31 @@ describe('App', () => {
     expect(await screen.findByText('email or password is incorrect')).toBeInTheDocument();
   });
 
+  it('ログイン失敗後に新規登録画面へ切り替えると、ログイン画面のエラーは引き継がれない', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401 }),
+        'POST /api/auth/refresh': () => ({ status: 401 }),
+        'POST /api/auth/login': () => ({ status: 401, body: { detail: 'email or password is incorrect' } }),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'RaiseTechSNS' });
+
+    await user.type(screen.getByLabelText('メールアドレス'), 'taro@example.com');
+    await user.type(screen.getByLabelText('パスワード'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+    await screen.findByText('email or password is incorrect');
+
+    await user.click(screen.getByRole('button', { name: '新規登録はこちら' }));
+
+    expect(screen.getByRole('heading', { name: '新規登録' })).toBeInTheDocument();
+    expect(screen.queryByText('email or password is incorrect')).not.toBeInTheDocument();
+  });
+
   it('ログアウトするとログイン画面に戻る', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

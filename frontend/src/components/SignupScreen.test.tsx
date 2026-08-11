@@ -19,6 +19,17 @@ describe('SignupScreen', () => {
     expect(screen.getByRole('button', { name: '登録する' })).toBeDisabled();
   });
 
+  it('パスワードが8文字未満では「登録する」ボタンが無効になる', async () => {
+    const user = userEvent.setup();
+    render(<SignupScreen onSubmit={vi.fn()} onSwitchToLogin={vi.fn()} submitting={false} error={null} />);
+
+    await user.type(screen.getByLabelText('ユーザー名'), 'taro');
+    await user.type(screen.getByLabelText('メールアドレス'), 'taro@example.com');
+    await user.type(screen.getByLabelText('パスワード'), 'short1');
+
+    expect(screen.getByRole('button', { name: '登録する' })).toBeDisabled();
+  });
+
   it('3項目を入力して送信するとonSubmitが呼ばれる', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(true);

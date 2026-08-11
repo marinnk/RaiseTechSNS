@@ -70,8 +70,15 @@ body {
 }
 
 .form-field input:focus {
-  outline: none;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
   border-color: var(--color-primary);
+}
+
+.field-hint {
+  color: var(--color-text-sub);
+  font-size: 12px;
+  margin: 6px 0 0;
 }
 
 .form-error {
