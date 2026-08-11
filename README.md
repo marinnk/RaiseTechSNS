@@ -10,9 +10,9 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 
 ## 使用技術
 
-姉妹プロジェクト[TaskManagement](../TaskManagement)と同一の技術スタックを採用しています。
+姉妹プロジェクト[TaskManagement](../TaskManagement)と同一の技術スタックを基本としつつ、データアクセス層のみMyBatisを採用しています。
 
-- バックエンド：Java 25 / Spring Boot 4.1.0 / Spring Data JPA / Gradle
+- バックエンド：Java 25 / Spring Boot 4.1.0 / MyBatis / Gradle
 - フロントエンド：TypeScript / React 19 / Vite
 - データベース：PostgreSQL 16
 
@@ -30,7 +30,7 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 
 ## ステータス
 
-現在、ヘルスチェックAPI・DBスキーマ（Flywayマイグレーション）までのスキャフォールドが済んでいます。ログイン・タイムライン等の各機能はこれから実装します。
+現在、ヘルスチェックAPI・DBスキーマ（Flywayマイグレーション）に加え、ユーザー登録・ログイン・ログアウトのバックエンドAPI（Spring Security + JWT）まで実装済みです。ログイン画面等のフロントエンド、タイムライン以降の各機能はこれから実装します。
 
 ## セットアップ
 
@@ -57,6 +57,8 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
 起動後、`http://localhost:8080/api/health` にアクセスすると `{"status":"ok"}` が返ります。
 
 DB接続先はデフォルトでDocker Composeの設定と一致していますが、環境変数（`DB_HOST` / `DB_PORT` / `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`）で上書きできます。
+
+ログイン用JWTの署名鍵は環境変数`JWT_SECRET`で上書きできます（未設定時は開発用のデフォルト値を使用しますが、本番相当の環境では必ず上書きしてください）。トークンの有効期限は`JWT_EXPIRATION_MS`（デフォルト86400000＝1日）、CookieのSecure属性は`JWT_COOKIE_SECURE`（デフォルトfalse。HTTPS配信になる環境ではtrueにしてください）で変更できます。
 
 ### フロントエンド（React + Vite）
 

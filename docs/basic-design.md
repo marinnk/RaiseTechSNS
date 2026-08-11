@@ -19,6 +19,9 @@ ER図をMermaid記法（erDiagram）に変更
 **1.4 / 2026-08-10**  
 ユーザー検索の実装方針を追記（既存カラムのみで対応、新規テーブル・カラムは不要）
 
+**1.5 / 2026-08-11**  
+データアクセス層をSpring Data JPA/HibernateからMyBatis（XMLマッパー方式）に変更。学習中の講義でMyBatisを使用しているため、TaskManagementとの技術スタックの差分として明記
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -33,15 +36,14 @@ ER図をMermaid記法（erDiagram）に変更
 
 ## 2. 技術スタック
 
-姉妹プロジェクト[TaskManagement](../../TaskManagement)と同一の技術スタックを採用する。
+姉妹プロジェクト[TaskManagement](../../TaskManagement)と同一の技術スタックを基本としつつ、データアクセス層のみ、受講中の講義に合わせてMyBatisを採用する（TaskManagementはSpring Data JPA + Hibernate）。
 
 ### バックエンド
 
 - 言語：Java 25
 - フレームワーク：Spring Boot 4.1.0
 - Web：Spring Web（REST API）
-- データアクセス：Spring Data JPA 4.1.0
-- ORM：Hibernate 7.4.1.Final
+- データアクセス：MyBatis（mybatis-spring-boot-starter 4.0.1、XMLマッパー方式）
 - ビルドツール：Gradle 9.5.1
 - JDBCドライバ：PostgreSQL JDBCドライバ 42.7.11
 
