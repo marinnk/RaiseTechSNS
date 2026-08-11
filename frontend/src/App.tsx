@@ -1,28 +1,45 @@
-import { useEffect, useState } from 'react';
-import { apiGet } from './api/client';
-import './App.css';
+import { useState } from 'react';
+import { useAuth } from './hooks/useAuth';
+import { LoginScreen } from './components/LoginScreen';
+import { SignupScreen } from './components/SignupScreen';
+import { LoginSuccessScreen } from './components/LoginSuccessScreen';
 
-type HealthResponse = { status: string };
+type Screen = 'login' | 'signup';
 
 function App() {
-  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error'>('checking');
+  const { user, sessionStatus, submitting, error, login, register, logout } = useAuth();
+  const [screen, setScreen] = useState<Screen>('login');
 
-  useEffect(() => {
-    apiGet<HealthResponse>('/api/health')
-      .then((res) => setApiStatus(res.status === 'ok' ? 'ok' : 'error'))
-      .catch(() => setApiStatus('error'));
-  }, []);
+  if (sessionStatus === 'checking') {
+    return (
+      <div className="centered-page">
+        <p>読み込み中...</p>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <LoginSuccessScreen user={user} onLogout={logout} submitting={submitting} />;
+  }
+
+  if (screen === 'signup') {
+    return (
+      <SignupScreen
+        onSubmit={register}
+        onSwitchToLogin={() => setScreen('login')}
+        submitting={submitting}
+        error={error}
+      />
+    );
+  }
 
   return (
-    <main>
-      <h1>RaiseTechSNS</h1>
-      <p>
-        バックエンドAPI:{' '}
-        {apiStatus === 'checking' && '接続確認中…'}
-        {apiStatus === 'ok' && '接続OK'}
-        {apiStatus === 'error' && '接続エラー'}
-      </p>
-    </main>
+    <LoginScreen
+      onSubmit={login}
+      onSwitchToSignup={() => setScreen('signup')}
+      submitting={submitting}
+      error={error}
+    />
   );
 }
 
