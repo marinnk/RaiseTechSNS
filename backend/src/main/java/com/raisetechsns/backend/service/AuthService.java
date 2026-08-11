@@ -10,7 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.RegisterRequest;
 import com.raisetechsns.backend.entity.User;
-import com.raisetechsns.backend.repository.UserRepository;
+import com.raisetechsns.backend.mapper.UserMapper;
 
 @Service
 public class AuthService {
@@ -18,20 +18,20 @@ public class AuthService {
     private static final Logger LOG = LoggerFactory.getLogger(AuthService.class);
     private static final String LOGIN_FAILURE_MESSAGE = "email or password is incorrect";
 
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
+    public AuthService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+        this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public User register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        if (userMapper.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email is already registered");
         }
-        if (userRepository.existsByUsername(request.username())) {
+        if (userMapper.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "username is already taken");
         }
 
@@ -43,13 +43,14 @@ public class AuthService {
         // 表示名は初期値としてユーザー名を設定する（後からプロフィール編集で変更可能）
         user.setDisplayName(request.username());
 
-        User saved = userRepository.save(user);
-        LOG.info("user registered: id={}", saved.getId());
-        return saved;
+        // 実行するとuserにDB採番済みのidが反映される
+        userMapper.insert(user);
+        LOG.info("user registered: id={}", user.getId());
+        return user;
     }
 
     public User login(String email, String rawPassword) {
-        User user = userRepository.findByEmail(email)
+        User user = userMapper.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILURE_MESSAGE));
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILURE_MESSAGE);

@@ -11,7 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.raisetechsns.backend.repository.UserRepository;
+import com.raisetechsns.backend.mapper.UserMapper;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -30,11 +30,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String COOKIE_NAME = "access_token";
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserMapper userMapper) {
         this.jwtService = jwtService;
-        this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -60,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private Optional<Authentication> authenticate(String token) {
         try {
             Long userId = jwtService.parseUserId(token);
-            return userRepository.findById(userId)
+            return userMapper.findById(userId)
                     .map(user -> (Authentication) new UsernamePasswordAuthenticationToken(user, null, List.of()));
         } catch (JwtException | NumberFormatException e) {
             return Optional.empty();

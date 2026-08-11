@@ -10,9 +10,9 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 
 ## 使用技術
 
-姉妹プロジェクト[TaskManagement](../TaskManagement)と同一の技術スタックを採用しています。
+姉妹プロジェクト[TaskManagement](../TaskManagement)と同一の技術スタックを基本としつつ、データアクセス層のみMyBatisを採用しています。
 
-- バックエンド：Java 25 / Spring Boot 4.1.0 / Spring Data JPA / Gradle
+- バックエンド：Java 25 / Spring Boot 4.1.0 / MyBatis / Gradle
 - フロントエンド：TypeScript / React 19 / Vite
 - データベース：PostgreSQL 16
 
