@@ -1,7 +1,131 @@
 :root {
-  color-scheme: light dark;
+  --color-bg: #f5f8fa;
+  --color-surface: #ffffff;
+  --color-border: #e1e8ed;
+  --color-text: #14171a;
+  --color-text-sub: #657786;
+  --color-primary: #1da1f2;
+  --color-primary-dark: #1a91da;
+  --color-danger: #e0245e;
 }
 
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+}
+
+.centered-page {
+  max-width: 420px;
+  margin: 48px auto;
+  padding: 32px 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+@media (max-width: 640px) {
+  .centered-page {
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    border-width: 0 0 1px;
+  }
+}
+
+.auth-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  color: var(--color-primary);
+  margin: 0 0 24px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--color-text-sub);
+  margin-bottom: 6px;
+}
+
+.form-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.form-field input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.field-hint {
+  color: var(--color-text-sub);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.form-error {
+  background: #fdeef1;
+  color: var(--color-danger);
+  border: 1px solid rgba(224, 36, 94, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.text-sub {
+  color: var(--color-text-sub);
+  font-size: 14px;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn:disabled {
+  background: #9ad0f5;
+  cursor: default;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
 }

@@ -22,6 +22,9 @@ ER図をMermaid記法（erDiagram）に変更
 **1.5 / 2026-08-11**  
 データアクセス層をSpring Data JPA/HibernateからMyBatis（XMLマッパー方式）に変更。学習中の講義でMyBatisを使用しているため、TaskManagementとの技術スタックの差分として明記
 
+**1.6 / 2026-08-11**  
+認証方式の詳細（アクセストークン＋リフレッシュトークン方式、トークンの保存場所、ログアウト時の無効化方法）を確定し、実装時に詳細設計するとしていた保留事項を反映。データベース設計にリフレッシュトークンテーブルを追加
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -62,10 +65,15 @@ ER図をMermaid記法（erDiagram）に変更
 
 ## 3. 認証方式
 
-- Spring Security + JWT（JSON Web Token）を採用する
-- ログイン成功時にサーバーが署名付きトークンを発行し、フロントエンドがそれを保持する。以降のAPIリクエストではHTTPヘッダーにトークンを付与し、サーバーは署名検証のみで本人確認する（サーバー側にセッション状態を保持しないステートレス方式）
+- Spring Security + JWTを用いた、アクセストークン＋リフレッシュトークンの2種類のトークンによる認証方式を採用する
+- トークンの保存場所：どちらのトークンもHttpOnly Cookie（JavaScriptから読み取れない）で保持し、XSSによるトークン窃取のリスクを下げる。フロントエンドはトークンの値を一切扱わず、ブラウザが自動的にCookieを送信することでAPIリクエストを認証する（HTTPヘッダーへの手動付与は行わない）
+- アクセストークン（`access_token`Cookie）：署名付きJWT。有効期限は短く（デフォルト15分）、期限切れ後はAPIリクエストが401になる
+- リフレッシュトークン（`refresh_token`Cookie）：ランダムな不透明トークン（JWTではない）。有効期限は長く（デフォルト14日）、DBにハッシュ値のみを保存して失効管理する。認証系エンドポイント（`/api/auth/**`）以外には送られないようCookieの送信範囲を絞る
+  - アクセストークンが失効した場合、フロントエンドは`POST /api/auth/refresh`を呼び、リフレッシュトークンをもとにアクセストークン・リフレッシュトークンの両方を再発行（ローテーション）する
+  - ローテーションのたびに使用済みのリフレッシュトークンは失効させ、同じトークンの再利用はできない。既に失効済みのトークンが再度使われた場合はトークン漏えいの兆候とみなし、そのユーザーの全リフレッシュトークンを失効させる
+  - ログアウト時は、両方のCookieを失効させると同時に、DB上のリフレッシュトークンも失効させる（クライアント側でCookieを消すだけでなく、サーバー側でも無効化する）
+- サーバー側はアクセストークンの検証のみで本人確認するステートレス方式（リフレッシュトークンの失効状態を除き、セッション状態を保持しない）
 - パスワードは平文で保存せず、ハッシュ化（BCrypt等）して保存する
-- トークンの保存場所（XSS対策）、有効期限・リフレッシュトークンの扱い、ログアウト時のトークン無効化方法は、実装時に詳細設計する
 
 ## 4. データベース設計
 
@@ -77,6 +85,7 @@ ER図をMermaid記法（erDiagram）に変更
 - コメント（comments）：id, 投稿, コメント者（利用者）, 本文, 投稿日時
 - いいね（likes）：id, 投稿, いいねした利用者, 日時
 - フォロー（follows）：id, フォローする利用者, フォローされる利用者, 日時
+- リフレッシュトークン（refresh_tokens）：id, 利用者, トークンハッシュ, 有効期限, 失効日時
 
 ### テーブル定義
 
@@ -134,6 +143,15 @@ ER図をMermaid記法（erDiagram）に変更
 - UNIQUE制約：(follower_id, followee_id) の組み合わせ（同じ相手を2回フォローできないようにする）
 - follower_id と followee_id が同じ値（自分自身のフォロー）にならないよう制約する
 
+#### refresh_tokens
+
+- id：BIGINT, PK, AUTO_INCREMENT
+- user_id：BIGINT, FK → users.id, NOT NULL
+- token_hash：VARCHAR(255), NOT NULL, UNIQUE（トークンの生の値ではなくSHA-256ハッシュを保存）
+- expires_at：TIMESTAMP, NOT NULL
+- revoked_at：TIMESTAMP, NULL可（失効済みの場合に日時が入る）
+- created_at：TIMESTAMP, NOT NULL
+
 ### ER図
 
 ```mermaid
@@ -143,6 +161,7 @@ erDiagram
     USERS ||--o{ LIKES : "いいねする"
     USERS ||--o{ FOLLOWS : "フォローする（follower_id）"
     USERS ||--o{ FOLLOWS : "フォローされる（followee_id）"
+    USERS ||--o{ REFRESH_TOKENS : "リフレッシュトークンを持つ"
     POSTS ||--o{ POST_IMAGES : "画像を持つ"
     POSTS ||--o{ COMMENTS : "コメントされる"
     POSTS ||--o{ LIKES : "いいねされる"
@@ -191,6 +210,14 @@ erDiagram
         bigint followee_id FK
         timestamp created_at
     }
+    REFRESH_TOKENS {
+        bigint id PK
+        bigint user_id FK
+        varchar token_hash UK
+        timestamp expires_at
+        timestamp revoked_at
+        timestamp created_at
+    }
 ```
 
 - 1人のusersは複数のpostsを持つ
@@ -198,6 +225,7 @@ erDiagram
 - 1人のusersは複数のlikesを付けられる
 - 1つのpostsは複数のpost_images（最大4件）・comments・likesを持つ
 - followsは、users同士の多対多のフォロー関係を表す中間テーブル（follower_id：フォローする側、followee_id：フォローされる側）
+- 1人のusersは複数のrefresh_tokensを持つ（同時に複数端末でログインしている場合など）
 
 補足：いいね数・コメント数は、likes・commentsテーブルの件数を集計（COUNT）して算出する方針とし、posts側に件数を保持するカラムは設けない。データ量が増えて集計コストが問題になった場合は、集計値をキャッシュするカラムの追加を検討する。
 

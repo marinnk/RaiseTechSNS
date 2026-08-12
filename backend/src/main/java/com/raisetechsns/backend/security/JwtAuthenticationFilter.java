@@ -27,7 +27,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    public static final String COOKIE_NAME = "access_token";
+    public static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
+    public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
 
     private final JwtService jwtService;
     private final UserMapper userMapper;
@@ -41,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        findCookie(request, COOKIE_NAME)
+        findCookie(request, ACCESS_TOKEN_COOKIE_NAME)
                 .flatMap(this::authenticate)
                 .ifPresent(auth -> SecurityContextHolder.getContext().setAuthentication(auth));
         filterChain.doFilter(request, response);

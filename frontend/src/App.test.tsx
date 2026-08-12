@@ -1,25 +1,188 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 
+const authUserBody = { id: 1, username: 'taro', displayName: 'taro', email: 'taro@example.com' };
+
+type MockResponse = { status: number; body?: unknown };
+
+function mockFetch(responses: Record<string, () => MockResponse>) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const path = url.replace('http://localhost:8080', '');
+    const method = init?.method ?? 'GET';
+    const key = `${method} ${path}`;
+    const handler = responses[key];
+    if (!handler) {
+      throw new Error(`unexpected fetch call: ${key}`);
+    }
+    const { status, body } = handler();
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => body,
+    } as Response;
+  });
+}
+
 describe('App', () => {
-  beforeEach(() => {
+  it('初期表示でセッションが無ければログイン画面が表示される', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: 'ok' }),
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401, body: { detail: 'unauthorized' } }),
+        'POST /api/auth/refresh': () => ({ status: 401, body: { detail: 'refresh token is missing' } }),
       }),
     );
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'RaiseTechSNS' })).toBeInTheDocument();
   });
 
-  it('タイトルを表示する', () => {
+  it('セッションが有効なら初期表示でログイン成功画面が表示される（リロード時のセッション維持相当）', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 200, body: authUserBody }),
+      }),
+    );
+
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'RaiseTechSNS' })).toBeInTheDocument();
+
+    expect(await screen.findByRole('heading', { name: 'ログイン成功！' })).toBeInTheDocument();
   });
 
-  it('ヘルスチェックAPIの結果を表示する', async () => {
+  it('ログインに成功するとログイン成功画面に遷移する', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401 }),
+        'POST /api/auth/refresh': () => ({ status: 401 }),
+        'POST /api/auth/login': () => ({ status: 200, body: authUserBody }),
+      }),
+    );
+
     render(<App />);
-    expect(await screen.findByText(/接続OK/)).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'RaiseTechSNS' });
+
+    await user.type(screen.getByLabelText('メールアドレス'), 'taro@example.com');
+    await user.type(screen.getByLabelText('パスワード'), 'password1');
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+
+    expect(await screen.findByRole('heading', { name: 'ログイン成功！' })).toBeInTheDocument();
+  });
+
+  it('「新規登録はこちら」から新規登録画面に切り替えられる', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401 }),
+        'POST /api/auth/refresh': () => ({ status: 401 }),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'RaiseTechSNS' });
+
+    await user.click(screen.getByRole('button', { name: '新規登録はこちら' }));
+
+    expect(screen.getByRole('heading', { name: '新規登録' })).toBeInTheDocument();
+  });
+
+  it('ログインに失敗するとエラーメッセージが表示される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401 }),
+        'POST /api/auth/refresh': () => ({ status: 401 }),
+        'POST /api/auth/login': () => ({ status: 401, body: { detail: 'email or password is incorrect' } }),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'RaiseTechSNS' });
+
+    await user.type(screen.getByLabelText('メールアドレス'), 'taro@example.com');
+    await user.type(screen.getByLabelText('パスワード'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+
+    expect(await screen.findByText('email or password is incorrect')).toBeInTheDocument();
+  });
+
+  it('ログイン失敗後に新規登録画面へ切り替えると、ログイン画面のエラーは引き継がれない', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 401 }),
+        'POST /api/auth/refresh': () => ({ status: 401 }),
+        'POST /api/auth/login': () => ({ status: 401, body: { detail: 'email or password is incorrect' } }),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'RaiseTechSNS' });
+
+    await user.type(screen.getByLabelText('メールアドレス'), 'taro@example.com');
+    await user.type(screen.getByLabelText('パスワード'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'ログイン' }));
+    await screen.findByText('email or password is incorrect');
+
+    await user.click(screen.getByRole('button', { name: '新規登録はこちら' }));
+
+    expect(screen.getByRole('heading', { name: '新規登録' })).toBeInTheDocument();
+    expect(screen.queryByText('email or password is incorrect')).not.toBeInTheDocument();
+  });
+
+  it('ログアウトするとログイン画面に戻る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/auth/me': () => ({ status: 200, body: authUserBody }),
+        'POST /api/auth/logout': () => ({ status: 204 }),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'ログイン成功！' });
+
+    await user.click(screen.getByRole('button', { name: 'ログアウト' }));
+
+    expect(await screen.findByRole('heading', { name: 'RaiseTechSNS' })).toBeInTheDocument();
+  });
+
+  it('アクセストークンが期限切れでもリフレッシュに成功すればログイン状態を保てる', async () => {
+    let meCallCount = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const path = url.replace('http://localhost:8080', '');
+        const method = init?.method ?? 'GET';
+
+        if (method === 'GET' && path === '/api/auth/me') {
+          meCallCount += 1;
+          if (meCallCount === 1) {
+            return { ok: false, status: 401, json: async () => ({ detail: 'unauthorized' }) } as Response;
+          }
+          return { ok: true, status: 200, json: async () => authUserBody } as Response;
+        }
+        if (method === 'POST' && path === '/api/auth/refresh') {
+          return { ok: true, status: 200, json: async () => authUserBody } as Response;
+        }
+        throw new Error(`unexpected fetch call: ${method} ${path}`);
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'ログイン成功！' })).toBeInTheDocument();
+    expect(meCallCount).toBe(2);
   });
 });

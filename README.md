@@ -30,7 +30,7 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 
 ## ステータス
 
-現在、ヘルスチェックAPI・DBスキーマ（Flywayマイグレーション）に加え、ユーザー登録・ログイン・ログアウトのバックエンドAPI（Spring Security + JWT）まで実装済みです。ログイン画面等のフロントエンド、タイムライン以降の各機能はこれから実装します。
+現在、ヘルスチェックAPI・DBスキーマ（Flywayマイグレーション）に加え、ユーザー登録・ログイン・ログアウトのバックエンドAPI（Spring Security + アクセストークン＋リフレッシュトークン方式のJWT認証）、およびフロントエンドの新規登録・ログイン画面まで実装済みです。ログイン後のメイン画面（タイムライン）は未実装のため、暫定的にログイン成功を確認する簡易画面を表示します。タイムライン以降の各機能はこれから実装します。
 
 ## セットアップ
 
@@ -58,7 +58,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
 
 DB接続先はデフォルトでDocker Composeの設定と一致していますが、環境変数（`DB_HOST` / `DB_PORT` / `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`）で上書きできます。
 
-ログイン用JWTの署名鍵は環境変数`JWT_SECRET`で上書きできます（未設定時は開発用のデフォルト値を使用しますが、本番相当の環境では必ず上書きしてください）。トークンの有効期限は`JWT_EXPIRATION_MS`（デフォルト86400000＝1日）、CookieのSecure属性は`JWT_COOKIE_SECURE`（デフォルトfalse。HTTPS配信になる環境ではtrueにしてください）で変更できます。
+ログイン用JWTの署名鍵は環境変数`JWT_SECRET`で上書きできます（未設定時は開発用のデフォルト値を使用しますが、本番相当の環境では必ず上書きしてください）。認証はアクセストークン（短命）とリフレッシュトークン（長命、DBで失効管理）の2種類のCookieで行い、有効期限はそれぞれ`JWT_ACCESS_TOKEN_EXPIRATION_MS`（デフォルト900000＝15分）・`JWT_REFRESH_TOKEN_EXPIRATION_MS`（デフォルト1209600000＝14日）で変更できます。CookieのSecure属性は`JWT_COOKIE_SECURE`（デフォルトfalse。HTTPS配信になる環境ではtrueにしてください）で変更できます。
 
 ### フロントエンド（React + Vite）
 
