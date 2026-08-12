@@ -40,6 +40,9 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 **1.11 / 2026-08-12**  
 コメント機能・いいね機能のAPI設計を追記（コメントの一覧取得・作成・削除エンドポイント、いいねの登録・解除エンドポイント）。投稿一覧・投稿詳細のレスポンスにいいね数・コメント数・いいね済みフラグを含める方針を明記。あわせてcomments・likesテーブルのpost_id外部キーにON DELETE CASCADEを追加するマイグレーションを追記
 
+**1.12 / 2026-08-12**  
+プロフィール機能・フォロー機能のAPI設計を追記（プロフィール取得・更新、フォロー登録・解除、フォロワー/フォロー中一覧のエンドポイント）。GET /api/postsに投稿者絞り込み（userId）・タイムラインの「フォロー中」タブ用の絞り込み（scope）のクエリパラメータを追加。フォロワー数・フォロー中数・フォロー済みフラグも、投稿のいいね数・コメント数と同様に相関サブクエリ・EXISTSで1回のSELECTにまとめて取得する方針を明記。users.bio・avatar_url、followsテーブルは既存のDB設計（4章）のまま変更なし。本バージョンではプロフィール編集は自己紹介のみを対象とし、アイコン画像のアップロード（S3連携）は別Issueとする
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -263,12 +266,14 @@ erDiagram
 
 | メソッド | パス | 説明 |
 |---|---|---|
-| GET | /api/posts?limit=\&beforeId=\&afterId= | 投稿一覧を新しい順（`id DESC`）に取得する |
+| GET | /api/posts?limit=\&beforeId=\&afterId=\&userId=\&scope= | 投稿一覧を新しい順（`id DESC`）に取得する |
 | POST | /api/posts | 新しい投稿を作成する。リクエストボディ`{ content: string }`（1〜280文字） |
 | PUT | /api/posts/{postId} | 自分の投稿の本文を編集する。他人の投稿を指定した場合は403 |
 | DELETE | /api/posts/{postId} | 自分の投稿を削除する。他人の投稿を指定した場合は403 |
 
 エラーレスポンスは認証APIと同様、Spring標準の`ProblemDetail`（RFC 7807）に統一する。
+
+`userId`を指定すると、指定した利用者の投稿のみに絞り込む（プロフィール画面の投稿一覧に使用）。`scope=following`を指定すると、フォロー中の利用者（および自分自身）の投稿のみに絞り込む（タイムラインの「フォロー中」タブに使用。省略時・`scope=all`は絞り込みなし＝「全体」タブ）。`userId`と`scope=following`は同時に指定できない（同時指定時は400エラー）。
 
 投稿一覧（`GET /api/posts`）・投稿詳細のレスポンスには、本文等に加えて`likeCount`（いいね数）・`commentCount`（コメント数）・`likedByMe`（ログイン中の利用者がいいね済みか）を含める。投稿ごとに個別クエリでこれらを数えると投稿件数分のクエリが発生してしまう（N+1問題）ため、投稿者情報と同じくJOIN・相関サブクエリで1回のSELECTにまとめて取得する（実装上はMyBatisの`PostMapper`が該当）。
 
@@ -296,6 +301,34 @@ erDiagram
 どちらも`{ likeCount: number, likedByMe: boolean }`を返す。
 
 投稿削除時は、その投稿に紐づくコメント・いいねもデータベース側の外部キー制約（ON DELETE CASCADE）により自動的に削除される。
+
+### プロフィールAPI
+
+プロフィール機能で追加したエンドポイント。いずれも認証必須。
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| GET | /api/users/{userId} | 指定した利用者のプロフィールを取得する |
+| PUT | /api/users/me | 自分のプロフィール（自己紹介のみ）を編集する。リクエストボディ`{ bio: string }`（0〜160文字） |
+
+プロフィール取得レスポンスには`followerCount`（フォロワー数）・`followingCount`（フォロー中の数）・`followedByMe`（ログイン中の利用者がフォロー済みか）を含める。投稿のいいね数・コメント数と同様、利用者ごとに個別クエリで数えるとN+1問題が発生するため、相関サブクエリ・EXISTSで1回のSELECTにまとめて取得する（実装上はMyBatisの`UserMapper.findByIdWithStats`が該当）。
+
+アイコン画像のアップロード（S3連携）は本バージョンのスコープに含めず、別Issueで対応する。
+
+### フォローAPI
+
+フォロー機能で追加したエンドポイント。いいねAPIと同じ理由（`follows`テーブルのUNIQUE制約`uq_follows_follower_followee`に対応）で、トグル式ではなく冪等な2エンドポイント（POST/DELETE）とする。いずれも認証必須。
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| POST | /api/users/{userId}/follow | 指定した利用者をフォローする。既にフォロー済みの場合も200でエラーにせず現在の状態を返す（冪等）。自分自身を指定した場合は400 |
+| DELETE | /api/users/{userId}/follow | 指定した利用者へのフォローを解除する。フォローしていない場合も200でエラーにせず現在の状態を返す（冪等） |
+| GET | /api/users/{userId}/followers | 指定した利用者のフォロワー一覧を取得する |
+| GET | /api/users/{userId}/following | 指定した利用者がフォロー中の利用者一覧を取得する |
+
+POST/DELETEはどちらも`{ followedByMe: boolean, followerCount: number }`を返す。フォロー・フォロー解除は`follows`テーブルのCHECK制約（`chk_follows_not_self`）により自己フォローがデータベースレベルでも防がれるが、制約違反による500ではなく利用者にわかりやすい400を返すため、登録前にアプリケーション側でも自己フォローを判定する。
+
+フォロワー一覧・フォロー中一覧は、学習規模のデータ量を前提にカーソルベースのページネーションは導入せず、安全弁としてのLIMIT付きで全件を1回のJOINクエリで取得する（実装上はMyBatisの`FollowMapper`が該当）。
 
 ### ページネーション方式（カーソルベース）
 
