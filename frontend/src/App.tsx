@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { LoginScreen } from './components/LoginScreen';
 import { SignupScreen } from './components/SignupScreen';
-import { LoginSuccessScreen } from './components/LoginSuccessScreen';
+import { TimelineScreen } from './components/TimelineScreen';
 
 type Screen = 'login' | 'signup';
 
@@ -30,7 +30,7 @@ function App() {
   }
 
   if (user) {
-    return <LoginSuccessScreen user={user} onLogout={logout} submitting={submitting} />;
+    return <TimelineScreen onLogout={logout} logoutSubmitting={submitting} />;
   }
 
   if (screen === 'signup') {
