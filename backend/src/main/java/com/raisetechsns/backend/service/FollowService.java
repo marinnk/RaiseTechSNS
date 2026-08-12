@@ -46,10 +46,14 @@ public class FollowService {
 
     /**
      * 指定した利用者へのフォローを解除する。フォローしていない場合もエラーにせず、現在の状態をそのまま返す（冪等）。
+     *
+     * <p>{@code follow}と異なり、事前の{@code requireUserExists}は行わない。DELETEはFK制約に
+     * 依存せず対象が存在しなくても0件削除になるだけで安全であり、その後の{@link #currentState}が
+     * {@code findByIdWithStats}のorElseThrowで404判定を兼ねるため、事前の存在確認クエリは
+     * 冗長（利用者が存在してもしなくても毎回1回余分なSELECTが発生するだけ）だった。
      */
     @Transactional
     public FollowActionResponse unfollow(Long targetUserId, User currentUser) {
-        profileService.requireUserExists(targetUserId);
         followMapper.delete(currentUser.getId(), targetUserId);
         return currentState(targetUserId, currentUser.getId());
     }

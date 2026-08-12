@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchFollowers, fetchFollowing } from '../api/follows';
 import { toErrorMessage } from '../utils/apiError';
 import type { UserSummary } from '../types/follow';
@@ -15,8 +15,15 @@ export function useFollowList(userId: number | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 表示中の利用者が変わったら（別のプロフィールへ遷移したら）、開いていたパネルは閉じる
+  // 直近に発行したリクエストの通し番号。ある一覧取得の途中で別のプロフィールへ遷移したり
+  // パネルを開き直したりして新しいリクエストが発行された場合、古いリクエストの応答が
+  // 後から返ってきても（＝この番号と一致しなくなる）表示中の一覧を上書きしないよう無視する
+  const latestRequestRef = useRef(0);
+
+  // 表示中の利用者が変わったら（別のプロフィールへ遷移したら）、開いていたパネルを閉じ、
+  // 保留中のリクエストがあれば無効化する
   useEffect(() => {
+    latestRequestRef.current += 1;
     setOpenPanel(null);
     setUsers([]);
     setError(null);
@@ -30,15 +37,18 @@ export function useFollowList(userId: number | null) {
       }
       setOpenPanel(type);
       if (userId === null) return;
+      const requestId = ++latestRequestRef.current;
       setLoading(true);
       setError(null);
       try {
         const res = type === 'followers' ? await fetchFollowers(userId) : await fetchFollowing(userId);
+        if (latestRequestRef.current !== requestId) return;
         setUsers(res.users);
       } catch (err) {
+        if (latestRequestRef.current !== requestId) return;
         setError(toErrorMessage(err, '一覧の取得に失敗しました。'));
       } finally {
-        setLoading(false);
+        if (latestRequestRef.current === requestId) setLoading(false);
       }
     },
     [openPanel, userId],

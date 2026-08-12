@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../api/client';
 import { followUser, unfollowUser } from '../api/follows';
 import type { Profile } from '../types/profile';
@@ -11,10 +11,23 @@ import type { Profile } from '../types/profile';
  *
  * いいねAPIと同じ理由で、フォローAPIもトグル式ではなく冪等なPOST/DELETEの2エンドポイントの
  * ため、現在の状態（followedByMe）を見てどちらを呼ぶか決める。
+ *
+ * @param currentProfileUserId 現在画面に表示しているプロフィールの利用者id。フォロー処理の
+ *     レスポンス待ちの間に別の利用者のプロフィールへ遷移した場合、古いレスポンスで別の
+ *     利用者の表示を上書きしてしまわないよう、レスポンスが返った時点でこれと一致する場合
+ *     のみ反映する。
  */
-export function useFollow(applyProfileUpdate: (patch: { followedByMe: boolean; followerCount: number }) => void) {
+export function useFollow(
+  applyProfileUpdate: (patch: { followedByMe: boolean; followerCount: number }) => void,
+  currentProfileUserId: number | null,
+) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const currentProfileUserIdRef = useRef(currentProfileUserId);
+  useEffect(() => {
+    currentProfileUserIdRef.current = currentProfileUserId;
+  }, [currentProfileUserId]);
 
   const toggleFollow = useCallback(
     async (profile: Pick<Profile, 'id' | 'followedByMe' | 'followerCount'>) => {
@@ -28,10 +41,14 @@ export function useFollow(applyProfileUpdate: (patch: { followedByMe: boolean; f
       setError(null);
       try {
         const result = profile.followedByMe ? await unfollowUser(profile.id) : await followUser(profile.id);
-        // サーバー側の値で確定させる
-        applyProfileUpdate(result);
+        // サーバー側の値で確定させる（表示中のプロフィールが変わっていなければ）
+        if (currentProfileUserIdRef.current === profile.id) {
+          applyProfileUpdate(result);
+        }
       } catch (err) {
-        applyProfileUpdate(previous);
+        if (currentProfileUserIdRef.current === profile.id) {
+          applyProfileUpdate(previous);
+        }
         setError(err instanceof ApiError ? err.message : 'フォロー処理に失敗しました。');
       } finally {
         setSubmitting(false);

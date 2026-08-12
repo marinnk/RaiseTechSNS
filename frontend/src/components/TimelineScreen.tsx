@@ -98,7 +98,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
     submitting: followSubmitting,
     error: followError,
     clearError: clearFollowError,
-  } = useFollow(applyProfileUpdate);
+  } = useFollow(applyProfileUpdate, profileUserId);
 
   const {
     openPanel: openFollowPanel,

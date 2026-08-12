@@ -115,9 +115,10 @@ class FollowServiceTest {
 
     @Test
     void unfollow_対象利用者が存在しなければNOT_FOUNDになる() {
+        // unfollowはfollowと違い事前のrequireUserExistsを行わない（DELETEは対象が無くても
+        // 安全なため）。currentStateのfindByIdWithStatsが存在しないことを検知して404にする
         User currentUser = user(1L);
-        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"))
-                .when(profileService).requireUserExists(999L);
+        when(userMapper.findByIdWithStats(999L, 1L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> followService.unfollow(999L, currentUser));
