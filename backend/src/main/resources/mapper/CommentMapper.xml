@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.raisetechsns.backend.mapper.CommentMapper">
+
+    <sql id="columnsWithAuthor">
+        c.id AS comment_id, c.post_id, c.user_id, c.content,
+        u.username, u.display_name
+    </sql>
+
+    <!-- idx_comments_post_idにより、投稿1件あたりのコメント一覧取得は効率的 -->
+    <select id="findAllWithAuthorByPostId" resultType="com.raisetechsns.backend.entity.CommentWithAuthor">
+        SELECT <include refid="columnsWithAuthor"/>
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.post_id = #{postId}
+        ORDER BY c.id ASC
+    </select>
+
+    <select id="findByIdWithAuthor" resultType="com.raisetechsns.backend.entity.CommentWithAuthor">
+        SELECT <include refid="columnsWithAuthor"/>
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.id = #{id}
+    </select>
+
+    <select id="findById" resultType="com.raisetechsns.backend.entity.Comment">
+        SELECT id, post_id, user_id, content, created_at
+        FROM comments
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        id・created_atはDB側（自動採番・DEFAULT now()）に任せるため、INSERT文には含めない。
+        useGeneratedKeys/keyPropertyにより、採番されたidが実行後にcomment.idへ反映される。
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comments (post_id, user_id, content)
+        VALUES (#{postId}, #{userId}, #{content})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM comments
+        WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+</mapper>
