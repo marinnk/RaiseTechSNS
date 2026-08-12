@@ -815,4 +815,88 @@ describe('TimelineScreen', () => {
 
     expect(await screen.findByText('プロフィール限定の投稿')).toBeInTheDocument();
   });
+
+  it('回帰テスト：プロフィール発の投稿詳細で削除すると、タイムライン一覧からも消える', async () => {
+    // 自分の投稿は「全体」タイムラインにも自分のプロフィールの投稿一覧にも表示される。
+    // 投稿データを別々の配列で持っていると、プロフィール側から削除してもタイムライン側には
+    // 反映されない不整合が起きていた（投稿データはpostStoreという1箇所にまとめて解消済み）。
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '共有される投稿' })], hasMore: false },
+        }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '共有される投稿' })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({ status: 200, body: { comments: [] } }),
+        'DELETE /api/posts/1': () => ({ status: 204 }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('共有される投稿');
+
+    const header = document.querySelector<HTMLElement>('.timeline-header');
+    if (!header) throw new Error('header not found');
+    await user.click(within(header).getByRole('button', { name: '太郎' }));
+
+    await user.click(await screen.findByRole('button', { name: 'コメント 0' }));
+    await screen.findByRole('button', { name: '← プロフィールに戻る' });
+
+    await user.click(screen.getByRole('button', { name: '削除' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を削除' });
+    await user.click(within(dialog).getByRole('button', { name: '削除' }));
+
+    // 削除後はプロフィール（開いた元の画面）に戻り、投稿一覧が空になる
+    expect(await screen.findByText('まだ投稿がありません。')).toBeInTheDocument();
+
+    // タイムラインへ戻ったとき、削除したはずの投稿が残っていないことを確認する
+    await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
+    expect(screen.queryByText('共有される投稿')).not.toBeInTheDocument();
+    expect(screen.getByText('まだ投稿がありません。')).toBeInTheDocument();
+  });
+
+  it('回帰テスト：プロフィールの投稿一覧でいいねすると、タイムライン一覧にも反映される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '共有される投稿', likeCount: 0, likedByMe: false })], hasMore: false },
+        }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '共有される投稿', likeCount: 0, likedByMe: false })], hasMore: false },
+        }),
+        'POST /api/posts/1/likes': () => ({ status: 200, body: { likeCount: 1, likedByMe: true } }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('共有される投稿');
+
+    const header = document.querySelector<HTMLElement>('.timeline-header');
+    if (!header) throw new Error('header not found');
+    await user.click(within(header).getByRole('button', { name: '太郎' }));
+
+    await user.click(await screen.findByRole('button', { name: 'いいね 0' }));
+    expect(await screen.findByRole('button', { name: 'いいね 1' })).toHaveAttribute('aria-pressed', 'true');
+
+    // タイムラインに戻ると、同じ投稿のいいね状態が反映されている
+    await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
+    expect(await screen.findByRole('button', { name: 'いいね 1' })).toHaveAttribute('aria-pressed', 'true');
+  });
 });

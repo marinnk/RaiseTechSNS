@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError } from '../api/client';
 import { fetchFollowers, fetchFollowing } from '../api/follows';
+import { toErrorMessage } from '../utils/apiError';
 import type { UserSummary } from '../types/follow';
 
 export type FollowListType = 'followers' | 'following';
-
-function toErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message : fallback;
-}
 
 /**
  * プロフィール画面の「フォロー中」「フォロワー」の人数をクリックしたときに開閉する

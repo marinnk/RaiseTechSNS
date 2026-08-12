@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useComments } from '../hooks/useComments';
 import { useFollow } from '../hooks/useFollow';
 import { useFollowList } from '../hooks/useFollowList';
 import { useLikes } from '../hooks/useLikes';
+import { usePostStore } from '../hooks/usePostStore';
 import { usePosts } from '../hooks/usePosts';
 import { useProfile } from '../hooks/useProfile';
 import { useUserPosts } from '../hooks/useUserPosts';
@@ -38,12 +39,21 @@ type TimelineScope = 'all' | 'following';
 // ログイン後のメイン画面（S03 タイムライン画面 / S04 投稿詳細画面 / S05 プロフィール画面 /
 // S06 プロフィール編集画面）。プロフィール編集は今バージョンでは自己紹介のみ対象
 // （アイコン画像のアップロードは別Issueで対応）。
+//
+// 投稿の実データ（本文・いいね数・コメント数等）はusePostStoreが唯一の情報源として持つ。
+// タイムライン一覧（usePosts）とプロフィールの投稿一覧（useUserPosts）は、同じ投稿
+// （例：自分の投稿）を同時に表示することがあるため、それぞれ「どのidを表示するか」だけを
+// 管理し、実データ・編集/削除/いいね/コメント数の更新はすべてpostStore側の関数に一本化する。
+// これにより、投稿詳細ビューをタイムライン・プロフィールのどちらから開いても、同じ投稿を
+// 表示している他の画面に操作結果が自動的に反映される。
 export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: TimelineScreenProps) {
   const [view, setView] = useState<View>({ mode: 'list' });
   const [scope, setScope] = useState<TimelineScope>('all');
 
+  const postStore = usePostStore();
+
   const {
-    posts,
+    postIds,
     loading,
     loadingMore,
     hasMore,
@@ -52,15 +62,14 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
     newPostsCount,
     loadMore,
     addPost,
-    editPost,
-    removePost,
     showNewPosts,
     clearError,
-    applyLikeUpdate,
-    bumpCommentCount,
-  } = usePosts(scope);
+  } = usePosts(scope, postStore.upsertPosts);
+  const posts = postStore.getPosts(postIds);
 
-  const mainLikes = useLikes(applyLikeUpdate);
+  // いいねのトグルは唯一の投稿ストアを書き換えるだけなので、タイムライン・プロフィール・
+  // 投稿詳細のどこで押しても1つのインスタンスで足りる
+  const likes = useLikes(postStore.applyLikeUpdate);
 
   // プロフィール画面で表示する利用者のid。プロフィール編集中は自分自身、投稿詳細ビューが
   // プロフィール経由で開かれている間もプロフィール側のデータ（投稿一覧・フォロー状態）を
@@ -100,46 +109,22 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
   } = useFollowList(profileUserId);
 
   const {
-    posts: profilePosts,
+    postIds: profilePostIds,
     loading: profilePostsLoading,
     loadingMore: profilePostsLoadingMore,
     hasMore: profilePostsHasMore,
     error: profilePostsError,
     loadMore: loadMoreProfilePosts,
-    editPost: editProfilePost,
-    removePost: removeProfilePost,
     clearError: clearProfilePostsError,
-    applyLikeUpdate: applyProfileLikeUpdate,
-    bumpCommentCount: bumpProfileCommentCount,
-  } = useUserPosts(profileUserId);
+  } = useUserPosts(profileUserId, postStore.upsertPosts);
+  const profilePosts = postStore.getPosts(profilePostIds);
 
-  const profileLikes = useLikes(applyProfileLikeUpdate);
-
-  // 投稿詳細ビュー（S04）は、タイムライン一覧・プロフィールの投稿一覧のどちらから開かれたかで
-  // 参照すべき配列（posts / profilePosts）が異なる。returnToにその情報を持たせているので、
-  // ここから毎回どちらの配列・フックを使うべきかを決める
-  const detailSource: 'timeline' | 'profile' | null =
-    view.mode === 'detail' ? (view.returnTo.mode === 'profile' ? 'profile' : 'timeline') : null;
-  const detailPost =
-    view.mode === 'detail'
-      ? (detailSource === 'profile' ? profilePosts : posts).find((p) => p.id === view.postId)
-      : undefined;
-  const detailEditPost = detailSource === 'profile' ? editProfilePost : editPost;
-  const detailToggleLike = detailSource === 'profile' ? profileLikes.toggleLike : mainLikes.toggleLike;
-  const detailIsTogglingLike = detailPost
-    ? detailSource === 'profile'
-      ? profileLikes.isToggling(detailPost.id)
-      : mainLikes.isToggling(detailPost.id)
-    : false;
+  // 投稿詳細ビュー（S04）はタイムライン一覧・プロフィールの投稿一覧のどちらから開いても、
+  // 同じpostStoreから投稿データを引く（どちらから開いたかで参照先を分ける必要はない）
+  const detailPost = view.mode === 'detail' ? postStore.getPosts([view.postId])[0] : undefined;
+  const detailIsTogglingLike = detailPost ? likes.isToggling(detailPost.id) : false;
 
   const activePostId = view.mode === 'detail' ? view.postId : null;
-  const handleCommentCountChange = useCallback(
-    (postId: number, delta: number) => {
-      if (detailSource === 'profile') bumpProfileCommentCount(postId, delta);
-      else bumpCommentCount(postId, delta);
-    },
-    [detailSource, bumpProfileCommentCount, bumpCommentCount],
-  );
   const {
     comments,
     loading: commentsLoading,
@@ -149,7 +134,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
     addComment,
     removeComment,
     clearError: clearCommentsError,
-  } = useComments(activePostId, handleCommentCountChange);
+  } = useComments(activePostId, postStore.bumpCommentCount);
 
   // バナーをクリックしたら、貯めておいた新着投稿を一覧の先頭に反映してから最上部へスクロールする
   const handleShowNewPosts = () => {
@@ -170,10 +155,11 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
   const openProfileEdit = () => setView({ mode: 'profileEdit' });
   const backFromProfileEdit = () => setView({ mode: 'profile', userId: currentUser.id });
 
-  // 詳細ビュー表示中に自分の投稿を削除したら、開いていた一覧（タイムライン or プロフィール）へ自動的に戻す
+  // 詳細ビュー表示中に自分の投稿を削除したら、開いていた一覧（タイムライン or プロフィール）へ自動的に戻す。
+  // 削除はpostStore側でidを取り除くだけなので、削除した投稿を表示していた他の画面（タイムライン・
+  // プロフィールどちらでも）からも自動的に消える
   const handleDeleteInDetail = async (postId: number): Promise<boolean> => {
-    const remove = detailSource === 'profile' ? removeProfilePost : removePost;
-    const ok = await remove(postId);
+    const ok = await postStore.removePost(postId);
     if (ok) backFromDetail();
     return ok;
   };
@@ -186,21 +172,21 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
 
   const displayError =
     error ??
-    mainLikes.error ??
+    postStore.error ??
+    likes.error ??
     commentsError ??
     profileError ??
     followError ??
     followListError ??
-    profilePostsError ??
-    profileLikes.error;
+    profilePostsError;
   const clearDisplayError = () => {
     clearError();
-    mainLikes.clearError();
+    postStore.clearError();
+    likes.clearError();
     clearCommentsError();
     clearProfileError();
     clearFollowError();
     clearProfilePostsError();
-    profileLikes.clearError();
   };
 
   return (
@@ -261,10 +247,10 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
               hasMore={hasMore}
               loadingMore={loadingMore}
               onLoadMore={loadMore}
-              onEdit={editPost}
-              onDelete={removePost}
-              onToggleLike={mainLikes.toggleLike}
-              isTogglingLike={mainLikes.isToggling}
+              onEdit={postStore.editPost}
+              onDelete={postStore.removePost}
+              onToggleLike={likes.toggleLike}
+              isTogglingLike={likes.isToggling}
               onOpenDetail={openDetail}
               onOpenProfile={openProfile}
             />
@@ -287,10 +273,10 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
             postsHasMore={profilePostsHasMore}
             postsLoadingMore={profilePostsLoadingMore}
             onLoadMorePosts={loadMoreProfilePosts}
-            onEditPost={editProfilePost}
-            onDeletePost={removeProfilePost}
-            onToggleLike={profileLikes.toggleLike}
-            isTogglingLike={profileLikes.isToggling}
+            onEditPost={postStore.editPost}
+            onDeletePost={postStore.removePost}
+            onToggleLike={likes.toggleLike}
+            isTogglingLike={likes.isToggling}
             onOpenDetail={openDetailFromProfile}
             onOpenProfile={openProfile}
           />
@@ -312,10 +298,10 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
         <PostDetailView
           post={detailPost}
           onBack={backFromDetail}
-          backLabel={detailSource === 'profile' ? 'プロフィール' : 'タイムライン'}
-          onEdit={detailEditPost}
+          backLabel={view.mode === 'detail' && view.returnTo.mode === 'profile' ? 'プロフィール' : 'タイムライン'}
+          onEdit={postStore.editPost}
           onDelete={handleDeleteInDetail}
-          onToggleLike={detailToggleLike}
+          onToggleLike={likes.toggleLike}
           isTogglingLike={detailIsTogglingLike}
           comments={comments}
           commentsLoading={commentsLoading}
@@ -326,7 +312,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
           onOpenProfile={openProfile}
         />
       ) : (
-        // 他タブでの削除など、稀にposts配列から該当投稿が見つからなくなった場合の保険
+        // 他タブでの削除など、稀にpostStoreから該当投稿が見つからなくなった場合の保険
         <p className="text-sub">投稿が見つかりませんでした。</p>
       )}
     </div>

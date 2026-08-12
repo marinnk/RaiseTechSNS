@@ -1,28 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError } from '../api/client';
-import { deletePost, fetchPosts, updatePost } from '../api/posts';
+import { fetchPosts } from '../api/posts';
+import { toErrorMessage } from '../utils/apiError';
 import type { Post } from '../types/post';
 
 const PAGE_SIZE = 20;
 
-function toErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message : fallback;
-}
-
 /**
- * プロフィール画面の「その利用者の投稿一覧」用のフック。usePostsと違い、新規投稿フォームや
- * ポーリングによる新着通知は持たない（プロフィール画面ではリアルタイム反映を要件としていないため）。
- * 一方で、この一覧から投稿詳細ビューを開いたときに編集・削除・いいねができるよう、
- * usePostsと同じ形のeditPost/removePost/applyLikeUpdate/bumpCommentCountを公開する。
+ * プロフィール画面の「その利用者の投稿id一覧」を管理するフック。usePostsと違い、新規投稿
+ * フォームやポーリングによる新着通知は持たない（プロフィール画面ではリアルタイム反映を
+ * 要件としていないため）。
+ *
+ * 投稿の実データ（本文・いいね数等）は持たず、{@link usePostStore}が唯一の情報源となる。
+ * 編集・削除・いいね・コメント数の更新もストア側の関数（`editPost`/`removePost`/
+ * `applyLikeUpdate`/`bumpCommentCount`）をそのまま使うため、このフックはid一覧の取得・
+ * ページネーションだけに責務を絞っている。
  *
  * userIdがnull（プロフィール画面を表示していない）の間はフェッチしない。
  */
-export function useUserPosts(userId: number | null) {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const postsRef = useRef<Post[]>([]);
+export function useUserPosts(userId: number | null, upsertPosts: (posts: Post[]) => void) {
+  const [postIds, setPostIds] = useState<number[]>([]);
+  const postIdsRef = useRef<number[]>([]);
   useEffect(() => {
-    postsRef.current = posts;
-  }, [posts]);
+    postIdsRef.current = postIds;
+  }, [postIds]);
 
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -32,7 +32,7 @@ export function useUserPosts(userId: number | null) {
 
   useEffect(() => {
     if (userId === null) {
-      setPosts([]);
+      setPostIds([]);
       setHasMore(false);
       setError(null);
       return;
@@ -43,7 +43,8 @@ export function useUserPosts(userId: number | null) {
     fetchPosts({ userId, limit: PAGE_SIZE })
       .then((res) => {
         if (!cancelled) {
-          setPosts(res.posts);
+          upsertPosts(res.posts);
+          setPostIds(res.posts.map((p) => p.id));
           setHasMore(res.hasMore);
         }
       })
@@ -56,17 +57,18 @@ export function useUserPosts(userId: number | null) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, upsertPosts]);
 
   const loadMore = useCallback(async () => {
     if (userId === null || loadingMoreRef.current) return;
-    const oldestId = postsRef.current[postsRef.current.length - 1]?.id;
+    const oldestId = postIdsRef.current[postIdsRef.current.length - 1];
     if (oldestId === undefined) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const res = await fetchPosts({ userId, beforeId: oldestId, limit: PAGE_SIZE });
-      setPosts((prev) => [...prev, ...res.posts]);
+      upsertPosts(res.posts);
+      setPostIds((prev) => [...prev, ...res.posts.map((p) => p.id)]);
       setHasMore(res.hasMore);
     } catch (err) {
       setError(toErrorMessage(err, '投稿の追加取得に失敗しました。'));
@@ -74,57 +76,9 @@ export function useUserPosts(userId: number | null) {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [userId]);
-
-  const editPost = useCallback(async (postId: number, content: string): Promise<boolean> => {
-    setError(null);
-    try {
-      const updated = await updatePost(postId, { content });
-      setPosts((prev) => prev.map((post) => (post.id === postId ? updated : post)));
-      return true;
-    } catch (err) {
-      setError(toErrorMessage(err, '投稿の編集に失敗しました。'));
-      return false;
-    }
-  }, []);
-
-  const removePost = useCallback(async (postId: number): Promise<boolean> => {
-    setError(null);
-    try {
-      await deletePost(postId);
-      setPosts((prev) => prev.filter((post) => post.id !== postId));
-      return true;
-    } catch (err) {
-      setError(toErrorMessage(err, '投稿の削除に失敗しました。'));
-      return false;
-    }
-  }, []);
+  }, [userId, upsertPosts]);
 
   const clearError = useCallback(() => setError(null), []);
 
-  const applyLikeUpdate = useCallback(
-    (postId: number, patch: { likeCount: number; likedByMe: boolean }) => {
-      setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, ...patch } : post)));
-    },
-    [],
-  );
-
-  const bumpCommentCount = useCallback((postId: number, delta: number) => {
-    setPosts((prev) =>
-      prev.map((post) => (post.id === postId ? { ...post, commentCount: post.commentCount + delta } : post)));
-  }, []);
-
-  return {
-    posts,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-    loadMore,
-    editPost,
-    removePost,
-    clearError,
-    applyLikeUpdate,
-    bumpCommentCount,
-  };
+  return { postIds, loading, loadingMore, hasMore, error, loadMore, clearError };
 }

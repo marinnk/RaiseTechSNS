@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError } from '../api/client';
 import { createComment, deleteComment, fetchComments } from '../api/comments';
+import { toErrorMessage } from '../utils/apiError';
 import type { Comment } from '../types/comment';
-
-function toErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message : fallback;
-}
 
 /**
  * 投稿詳細ビューで表示中の投稿（postId）に対するコメント一覧取得・投稿・削除を行うフック。
