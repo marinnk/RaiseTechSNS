@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PostContentInput } from './PostContentInput';
+import { isValidPostContent } from '../utils/postContent';
 
 interface PostFormProps {
   onSubmit: (content: string) => Promise<boolean>;
@@ -8,7 +9,7 @@ interface PostFormProps {
 
 export function PostForm({ onSubmit, submitting }: PostFormProps) {
   const [content, setContent] = useState('');
-  const canSubmit = content.trim().length > 0 && content.length <= 280 && !submitting;
+  const canSubmit = isValidPostContent(content) && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

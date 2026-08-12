@@ -61,21 +61,26 @@ export function usePosts() {
   // 他利用者の新規投稿をポーリングで検知する。見つかった投稿はnewPostsに積み増すだけで、
   // 一覧（posts）へはshowNewPosts()が呼ばれるまで反映しない
   useEffect(() => {
+    // 初回ロードのuseEffectと同様、アンマウント後にfetch結果でsetStateしてしまわないためのガード
+    let cancelled = false;
     const interval = setInterval(async () => {
       // 既にnewPostsに貯まっている分があれば、その先頭（＝一番新しいid）を基準にする
       const newestKnownId = newPostsRef.current[0]?.id ?? postsRef.current[0]?.id;
       if (newestKnownId === undefined) return;
       try {
         const res = await fetchPosts({ afterId: newestKnownId, limit: PAGE_SIZE });
-        if (res.posts.length > 0) {
+        if (!cancelled && res.posts.length > 0) {
           setNewPosts((prev) => [...res.posts, ...prev]);
         }
       } catch (err) {
         // ポーリングの失敗は画面を止めるほどの問題ではないためログのみ
-        console.error(err);
+        if (!cancelled) console.error(err);
       }
     }, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   // 新着通知バナーがクリックされたら、貯めておいた新着投稿を一覧の先頭にまとめて反映する

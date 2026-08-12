@@ -144,6 +144,40 @@ class PostControllerTest {
     }
 
     @Test
+    void list_afterIdでlimitを超える新着があっても2回に分けて取りこぼし無く取得できる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-after-burst@example.com");
+        var first = mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("基準の投稿")))
+                .andReturn();
+        int firstId = objectMapper.readTree(first.getResponse().getContentAsString()).get("id").asInt();
+        // 基準の投稿の後に、limit（2）を超える3件を連続投稿する
+        mockMvc.perform(post("/api/posts")
+                .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("新着1")));
+        mockMvc.perform(post("/api/posts")
+                .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("新着2")));
+        mockMvc.perform(post("/api/posts")
+                .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("新着3")));
+
+        // 1回目のポーリング：limit=2なので、取りこぼしを防ぐため古い方から2件（新着1・新着2）が返るはず
+        var firstPoll = mockMvc.perform(get("/api/posts")
+                        .param("afterId", String.valueOf(firstId)).param("limit", "2").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(2))
+                .andExpect(jsonPath("$.posts[0].content").value("新着2"))
+                .andExpect(jsonPath("$.posts[1].content").value("新着1"))
+                .andReturn();
+        int secondNewestId = objectMapper.readTree(firstPoll.getResponse().getContentAsString())
+                .get("posts").get(0).get("id").asInt();
+
+        // 2回目のポーリング：1回目で取得した最新idを基準にすると、残りの「新着3」が取りこぼし無く取得できる
+        mockMvc.perform(get("/api/posts")
+                        .param("afterId", String.valueOf(secondNewestId)).param("limit", "2").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(1))
+                .andExpect(jsonPath("$.posts[0].content").value("新着3"));
+    }
+
+    @Test
     void update_自分の投稿を編集できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "update-ok@example.com");
         var created = mockMvc.perform(post("/api/posts")

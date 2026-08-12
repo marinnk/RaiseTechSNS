@@ -90,7 +90,7 @@ class PostServiceTest {
         List<PostWithAuthor> rows = java.util.stream.IntStream.rangeClosed(1, 21)
                 .mapToObj(i -> row(i, 1L, "post" + i))
                 .toList();
-        when(postMapper.findAllWithAuthor(eq(21), isNull(), isNull())).thenReturn(rows);
+        when(postMapper.findAllWithAuthor(eq(21), isNull())).thenReturn(rows);
 
         PostListResponse result = postService.list(null, null, null, 1L);
 
@@ -100,7 +100,7 @@ class PostServiceTest {
 
     @Test
     void list_limit以下の件数ならhasMoreがfalseになる() {
-        when(postMapper.findAllWithAuthor(eq(21), isNull(), isNull()))
+        when(postMapper.findAllWithAuthor(eq(21), isNull()))
                 .thenReturn(List.of(row(2L, 1L, "b"), row(1L, 1L, "a")));
 
         PostListResponse result = postService.list(null, null, null, 1L);
@@ -115,6 +115,32 @@ class PostServiceTest {
                 ResponseStatusException.class, () -> postService.list(20, 5L, 3L, 1L));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void list_afterId指定時はfindNewerWithAuthorの結果を新しい順に並べ替えて返す() {
+        // findNewerWithAuthorは古い順（id昇順）で返す想定。レスポンスは他の一覧と同じく新しい順にする
+        when(postMapper.findNewerWithAuthor(eq(1L), eq(20)))
+                .thenReturn(List.of(row(2L, 1L, "2番目に古い新着"), row(3L, 1L, "最新の新着")));
+
+        PostListResponse result = postService.list(null, null, 1L, 1L);
+
+        assertThat(result.posts()).extracting(PostResponse::id).containsExactly(3L, 2L);
+        assertThat(result.hasMore()).isFalse();
+    }
+
+    @Test
+    void list_afterId指定時はlimitを超えて取りこぼさないようfindNewerWithAuthorへ古い順の取得を委ねる() {
+        // 1回のポーリング間隔でlimitを超える新着があっても、新しい方だけを返して
+        // 間の投稿を永久に取りこぼすことがないよう、Serviceはfindmapper側の古い順の結果を
+        // そのまま（並べ替えのみ）使う。つまりMapperにlimit+1件を要求する等の“打ち切り”を行わない
+        when(postMapper.findNewerWithAuthor(eq(1L), eq(2)))
+                .thenReturn(List.of(row(2L, 1L, "取りこぼされてはいけない投稿"), row(3L, 1L, "その次に古い新着")));
+
+        PostListResponse result = postService.list(2, null, 1L, 1L);
+
+        assertThat(result.posts()).extracting(PostResponse::content)
+                .containsExactly("その次に古い新着", "取りこぼされてはいけない投稿");
     }
 
     @Test

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PostContentInput } from './PostContentInput';
+import { isValidPostContent } from '../utils/postContent';
 
 interface PostEditFormProps {
   initialContent: string;
@@ -13,7 +14,7 @@ interface PostEditFormProps {
  */
 export function PostEditForm({ initialContent, submitting, onCancel, onSave }: PostEditFormProps) {
   const [content, setContent] = useState(initialContent);
-  const canSave = content.trim().length > 0 && content.length <= 280 && !submitting;
+  const canSave = isValidPostContent(content) && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

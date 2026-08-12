@@ -1,6 +1,9 @@
 package com.raisetechsns.backend.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,12 +46,31 @@ public class PostService {
         }
         int clampedLimit = clampLimit(limit);
 
-        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId, afterId);
+        if (afterId != null) {
+            return listNewerThan(afterId, clampedLimit, currentUserId);
+        }
+
+        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId);
         boolean hasMore = rows.size() > clampedLimit;
         List<PostWithAuthor> page = hasMore ? rows.subList(0, clampedLimit) : rows;
 
         List<PostResponse> posts = page.stream().map(row -> PostResponse.from(row, currentUserId)).toList();
         return new PostListResponse(posts, hasMore);
+    }
+
+    /**
+     * ポーリングでの新着差分取得用。{@code hasMore}は呼び出し側（ポーリング）では使わないため常にfalseを返す。
+     *
+     * <p>{@code findNewerWithAuthor}は取りこぼしを防ぐため古い順に{@code limit}件だけ返すので、
+     * レスポンスの並び順（新しい順）に揃えるためにここで反転する。
+     */
+    private PostListResponse listNewerThan(Long afterId, int limit, Long currentUserId) {
+        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit);
+        List<PostResponse> posts = ascendingRows.stream()
+                .map(row -> PostResponse.from(row, currentUserId))
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.reverse(posts);
+        return new PostListResponse(posts, false);
     }
 
     @Transactional

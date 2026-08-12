@@ -1,3 +1,5 @@
+import { MAX_POST_CONTENT_LENGTH } from '../utils/postContent';
+
 interface PostContentInputProps {
   id: string;
   value: string;
@@ -14,13 +16,15 @@ export function PostContentInput({ id, value, onChange, disabled }: PostContentI
       <textarea
         id={id}
         aria-label="投稿内容"
-        placeholder="今何してる？（280文字まで）"
-        maxLength={280}
+        placeholder={`今何してる？（${MAX_POST_CONTENT_LENGTH}文字まで）`}
+        maxLength={MAX_POST_CONTENT_LENGTH}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
-      <p className="field-hint">{value.length}/280</p>
+      <p className="field-hint">
+        {value.length}/{MAX_POST_CONTENT_LENGTH}
+      </p>
     </div>
   );
 }

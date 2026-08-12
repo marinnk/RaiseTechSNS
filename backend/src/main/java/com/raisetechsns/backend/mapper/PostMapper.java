@@ -16,17 +16,24 @@ import com.raisetechsns.backend.entity.PostWithAuthor;
 public interface PostMapper {
 
     /**
-     * 投稿者情報付きの投稿一覧を{@code id}の降順（新しい順）で取得する。
-     *
-     * <p>{@code beforeId}・{@code afterId}はどちらか一方のみ指定できる（同時指定はService層で弾く）。
-     * どちらもnullなら最新の投稿から取得する。
+     * 投稿者情報付きの投稿一覧を{@code id}の降順（新しい順）で取得する。無限スクロールでの
+     * 初回表示・追加読み込みに使う。
      *
      * @param limit 取得件数の上限
-     * @param beforeId 指定するとこのidより古い（idが小さい）投稿を取得する（無限スクロールでの追加読み込み用）
-     * @param afterId 指定するとこのidより新しい（idが大きい）投稿を取得する（ポーリングでの新着差分取得用）
+     * @param beforeId 指定するとこのidより古い（idが小さい）投稿を取得する。nullなら最新の投稿から取得する
      */
-    List<PostWithAuthor> findAllWithAuthor(
-            @Param("limit") int limit, @Param("beforeId") Long beforeId, @Param("afterId") Long afterId);
+    List<PostWithAuthor> findAllWithAuthor(@Param("limit") int limit, @Param("beforeId") Long beforeId);
+
+    /**
+     * 投稿者情報付きの投稿一覧を{@code id}の昇順（古い順）で、指定したidより新しいものだけ取得する。
+     * ポーリングでの新着差分取得専用。降順でlimit件に打ち切ると、1回のポーリング間隔でlimit件を超える
+     * 投稿があった場合に間に挟まれた投稿を永久に取りこぼすため、あえて昇順（古い方から）にlimit件だけ
+     * 取得することで、次回以降のポーリングで取りこぼし無く続きを取得できるようにしている。
+     *
+     * @param afterId このidより新しい（idが大きい）投稿を取得する
+     * @param limit 取得件数の上限
+     */
+    List<PostWithAuthor> findNewerWithAuthor(@Param("afterId") Long afterId, @Param("limit") int limit);
 
     Optional<PostWithAuthor> findByIdWithAuthor(@Param("id") Long id);
 

@@ -11,11 +11,18 @@
         SELECT <include refid="columnsWithAuthor"/>
         FROM posts p
         JOIN users u ON u.id = p.user_id
-        <where>
-            <if test="beforeId != null">p.id &lt; #{beforeId}</if>
-            <if test="afterId != null">p.id &gt; #{afterId}</if>
-        </where>
+        <if test="beforeId != null">WHERE p.id &lt; #{beforeId}</if>
         ORDER BY p.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- ポーリングでの新着差分取得専用。取りこぼしを防ぐため昇順（古い方から）にlimit件だけ取得する -->
+    <select id="findNewerWithAuthor" resultType="com.raisetechsns.backend.entity.PostWithAuthor">
+        SELECT <include refid="columnsWithAuthor"/>
+        FROM posts p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.id &gt; #{afterId}
+        ORDER BY p.id ASC
         LIMIT #{limit}
     </select>
 
