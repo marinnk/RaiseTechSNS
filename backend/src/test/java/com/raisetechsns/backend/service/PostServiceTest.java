@@ -8,7 +8,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,8 +51,8 @@ class PostServiceTest {
         row.setPostId(postId);
         row.setUserId(userId);
         row.setContent(content);
-        row.setCreatedAt(LocalDateTime.now());
-        row.setUpdatedAt(LocalDateTime.now());
+        row.setCreatedAt(OffsetDateTime.now());
+        row.setUpdatedAt(OffsetDateTime.now());
         row.setUsername("taro");
         row.setDisplayName("太郎");
         return row;

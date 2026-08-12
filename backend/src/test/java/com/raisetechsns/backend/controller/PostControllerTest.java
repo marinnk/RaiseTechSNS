@@ -1,5 +1,6 @@
 package com.raisetechsns.backend.controller;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,6 +65,22 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.content").value("はじめての投稿"))
                 .andExpect(jsonPath("$.username").value("taro"))
                 .andExpect(jsonPath("$.isOwnedByMe").value(true));
+    }
+
+    @Test
+    void create_投稿日時にはタイムゾーンオフセットが含まれる() throws Exception {
+        // サーバー・ブラウザのタイムゾーンが異なっても投稿日時の表示がずれないよう、
+        // createdAt/updatedAtにはオフセット（+09:00など）付きのISO8601文字列を返す契約になっている。
+        // LocalDateTime（オフセット無し）に戻ってしまう回帰を検知するためのテスト。
+        Cookie accessToken = registerAndLogin("taro", "create-tz@example.com");
+
+        mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(postBody("投稿")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.createdAt", matchesPattern(".*(Z|[+-]\\d{2}:\\d{2})$")))
+                .andExpect(jsonPath("$.updatedAt", matchesPattern(".*(Z|[+-]\\d{2}:\\d{2})$")));
     }
 
     @Test

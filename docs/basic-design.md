@@ -34,6 +34,9 @@ ER図をMermaid記法（erDiagram）に変更
 **1.9 / 2026-08-12**  
 非機能要件の「未ログイン利用者がタイムライン閲覧以外を行えないようにする」という記述を修正。`functional-requirements.md`・`screen-design.md`の設計（タイムラインはログイン・会員登録成功後にしか到達しない）と整合するよう、未ログイン利用者は閲覧を含めいずれの機能も利用できない旨に表現を改めた（品質チェックで判明した記述の食い違いを解消）
 
+**1.10 / 2026-08-12**  
+postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変更。サーバー・ブラウザが異なるタイムゾーンで動作する環境でも投稿日時の表示がずれないようにするための修正（品質チェックで判明した課題を解消）
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -115,8 +118,13 @@ ER図をMermaid記法（erDiagram）に変更
 - id：BIGINT, PK, AUTO_INCREMENT
 - user_id：BIGINT, FK → users.id, NOT NULL（投稿者）
 - content：VARCHAR(280), NOT NULL
-- created_at：TIMESTAMP, NOT NULL
-- updated_at：TIMESTAMP, NOT NULL
+- created_at：TIMESTAMPTZ, NOT NULL
+- updated_at：TIMESTAMPTZ, NOT NULL
+
+created_atとupdated_atは、サーバー・ブラウザのタイムゾーン設定に依らず投稿日時を一意に特定できるよう、
+タイムゾーン情報なしのTIMESTAMPではなくTIMESTAMPTZ（UTCを正として保存）を採用する。
+バックエンドはOffsetDateTimeとして扱い、レスポンスにはオフセット付きのISO8601文字列を返す。
+他テーブルのTIMESTAMP列は、現状フロントエンドで日時を表示していないため対象外としている。
 
 #### post_images
 
