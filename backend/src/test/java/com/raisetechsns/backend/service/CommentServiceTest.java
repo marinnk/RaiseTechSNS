@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -22,10 +23,8 @@ import com.raisetechsns.backend.dto.CommentResponse;
 import com.raisetechsns.backend.dto.CreateCommentRequest;
 import com.raisetechsns.backend.entity.Comment;
 import com.raisetechsns.backend.entity.CommentWithAuthor;
-import com.raisetechsns.backend.entity.Post;
 import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.mapper.CommentMapper;
-import com.raisetechsns.backend.mapper.PostMapper;
 
 @ExtendWith(MockitoExtension.class)
 class CommentServiceTest {
@@ -33,8 +32,11 @@ class CommentServiceTest {
     @Mock
     private CommentMapper commentMapper;
 
+    // 投稿の存在確認はPostService.requirePostExistsに委譲しているため、CommentMapper/PostMapperではなく
+    // PostServiceをモックする。成功系のテストではrequirePostExistsは何もしない（デフォルトのvoidモック動作）ため
+    // 明示的なスタブは不要で、失敗系のみdoThrowでNOT_FOUNDを起こす
     @Mock
-    private PostMapper postMapper;
+    private PostService postService;
 
     @InjectMocks
     private CommentService commentService;
@@ -45,14 +47,6 @@ class CommentServiceTest {
         user.setUsername("taro");
         user.setDisplayName("太郎");
         return user;
-    }
-
-    private static Post post(long id) {
-        Post post = new Post();
-        post.setId(id);
-        post.setUserId(99L);
-        post.setContent("投稿");
-        return post;
     }
 
     private static CommentWithAuthor row(long commentId, long postId, long userId, String content) {
@@ -77,7 +71,6 @@ class CommentServiceTest {
 
     @Test
     void list_投稿が存在すればコメント一覧を古い順で取得できる() {
-        when(postMapper.findById(1L)).thenReturn(Optional.of(post(1L)));
         when(commentMapper.findAllWithAuthorByPostId(1L))
                 .thenReturn(List.of(row(10L, 1L, 2L, "最初のコメント"), row(11L, 1L, 2L, "次のコメント")));
 
@@ -90,7 +83,8 @@ class CommentServiceTest {
 
     @Test
     void list_投稿が存在しなければNOT_FOUNDになる() {
-        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"))
+                .when(postService).requirePostExists(999L);
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> commentService.list(999L, 1L));
@@ -101,7 +95,6 @@ class CommentServiceTest {
     @Test
     void create_有効な内容ならコメントを作成できる() {
         User currentUser = user(2L);
-        when(postMapper.findById(1L)).thenReturn(Optional.of(post(1L)));
         doAnswer(invocation -> {
             Comment inserted = invocation.getArgument(0);
             inserted.setId(10L);
@@ -119,7 +112,8 @@ class CommentServiceTest {
     @Test
     void create_投稿が存在しなければNOT_FOUNDになる() {
         User currentUser = user(2L);
-        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"))
+                .when(postService).requirePostExists(999L);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> commentService.create(999L, new CreateCommentRequest("こんにちは"), currentUser));

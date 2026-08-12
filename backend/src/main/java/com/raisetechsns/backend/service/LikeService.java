@@ -16,10 +16,12 @@ public class LikeService {
 
     private final LikeMapper likeMapper;
     private final PostMapper postMapper;
+    private final PostService postService;
 
-    public LikeService(LikeMapper likeMapper, PostMapper postMapper) {
+    public LikeService(LikeMapper likeMapper, PostMapper postMapper, PostService postService) {
         this.likeMapper = likeMapper;
         this.postMapper = postMapper;
+        this.postService = postService;
     }
 
     /**
@@ -27,7 +29,7 @@ public class LikeService {
      */
     @Transactional
     public LikeResponse like(Long postId, User currentUser) {
-        requirePostExists(postId);
+        postService.requirePostExists(postId);
         likeMapper.insertIgnoreConflict(postId, currentUser.getId());
         return currentState(postId, currentUser.getId());
     }
@@ -37,7 +39,7 @@ public class LikeService {
      */
     @Transactional
     public LikeResponse unlike(Long postId, User currentUser) {
-        requirePostExists(postId);
+        postService.requirePostExists(postId);
         likeMapper.delete(postId, currentUser.getId());
         return currentState(postId, currentUser.getId());
     }
@@ -51,10 +53,5 @@ public class LikeService {
         PostWithAuthor row = postMapper.findByIdWithAuthor(postId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
         return LikeResponse.from(row);
-    }
-
-    private void requirePostExists(Long postId) {
-        postMapper.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
     }
 }

@@ -209,4 +209,23 @@ class PostServiceTest {
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void requirePostExists_投稿が存在すれば何も起きない() {
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+
+        postService.requirePostExists(10L);
+
+        // 例外が発生しなければ成功（CommentService・LikeServiceから共通で呼ばれる存在確認）
+    }
+
+    @Test
+    void requirePostExists_投稿が存在しなければNOT_FOUNDになる() {
+        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> postService.requirePostExists(999L));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
 }

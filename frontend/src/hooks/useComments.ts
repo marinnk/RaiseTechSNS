@@ -23,7 +23,10 @@ export function useComments(postId: number | null, onCommentCountChange: (postId
 
   useEffect(() => {
     if (postId === null) {
+      // 詳細ビューを閉じたら、コメント一覧だけでなくエラーメッセージも一緒にリセットする。
+      // ここを忘れると、詳細ビューで発生したエラーが一覧画面に戻った後も表示され続けてしまう
       setComments([]);
+      setError(null);
       return;
     }
     let cancelled = false;

@@ -3,6 +3,7 @@ package com.raisetechsns.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.LikeResponse;
-import com.raisetechsns.backend.entity.Post;
 import com.raisetechsns.backend.entity.PostWithAuthor;
 import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.mapper.LikeMapper;
@@ -33,6 +33,10 @@ class LikeServiceTest {
     @Mock
     private PostMapper postMapper;
 
+    // 投稿の存在確認はPostService.requirePostExistsに委譲している（CommentServiceTestと同じ理由）
+    @Mock
+    private PostService postService;
+
     @InjectMocks
     private LikeService likeService;
 
@@ -40,13 +44,6 @@ class LikeServiceTest {
         User user = new User();
         user.setId(id);
         return user;
-    }
-
-    private static Post post(long id) {
-        Post post = new Post();
-        post.setId(id);
-        post.setUserId(99L);
-        return post;
     }
 
     private static PostWithAuthor row(long postId, long likeCount, boolean likedByMe) {
@@ -61,7 +58,6 @@ class LikeServiceTest {
     @Test
     void like_投稿が存在すればいいねできる() {
         User currentUser = user(1L);
-        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L)));
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, true)));
 
         LikeResponse result = likeService.like(10L, currentUser);
@@ -74,7 +70,8 @@ class LikeServiceTest {
     @Test
     void like_投稿が存在しなければNOT_FOUNDになる() {
         User currentUser = user(1L);
-        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"))
+                .when(postService).requirePostExists(999L);
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> likeService.like(999L, currentUser));
@@ -86,7 +83,6 @@ class LikeServiceTest {
     @Test
     void unlike_いいねを取り消せる() {
         User currentUser = user(1L);
-        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L)));
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 0L, false)));
 
         LikeResponse result = likeService.unlike(10L, currentUser);
@@ -99,7 +95,8 @@ class LikeServiceTest {
     @Test
     void unlike_投稿が存在しなければNOT_FOUNDになる() {
         User currentUser = user(1L);
-        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"))
+                .when(postService).requirePostExists(999L);
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> likeService.unlike(999L, currentUser));

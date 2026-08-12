@@ -12,24 +12,23 @@ import com.raisetechsns.backend.entity.Comment;
 import com.raisetechsns.backend.entity.CommentWithAuthor;
 import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.mapper.CommentMapper;
-import com.raisetechsns.backend.mapper.PostMapper;
 
 @Service
 public class CommentService {
 
     private final CommentMapper commentMapper;
-    private final PostMapper postMapper;
+    private final PostService postService;
 
-    public CommentService(CommentMapper commentMapper, PostMapper postMapper) {
+    public CommentService(CommentMapper commentMapper, PostService postService) {
         this.commentMapper = commentMapper;
-        this.postMapper = postMapper;
+        this.postService = postService;
     }
 
     /**
      * 指定した投稿のコメント一覧を古い順（{@code id}昇順）で取得する。
      */
     public CommentListResponse list(Long postId, Long currentUserId) {
-        requirePostExists(postId);
+        postService.requirePostExists(postId);
         return new CommentListResponse(
                 commentMapper.findAllWithAuthorByPostId(postId).stream()
                         .map(row -> CommentResponse.from(row, currentUserId))
@@ -38,7 +37,7 @@ public class CommentService {
 
     @Transactional
     public CommentResponse create(Long postId, CreateCommentRequest request, User currentUser) {
-        requirePostExists(postId);
+        postService.requirePostExists(postId);
         Comment comment = new Comment();
         comment.setPostId(postId);
         comment.setUserId(currentUser.getId());
@@ -70,10 +69,5 @@ public class CommentService {
         if (!existing.getUserId().equals(currentUser.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "cannot delete another user's comment");
         }
-    }
-
-    private void requirePostExists(Long postId) {
-        postMapper.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
     }
 }
