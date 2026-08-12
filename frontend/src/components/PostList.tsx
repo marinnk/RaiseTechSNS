@@ -9,9 +9,22 @@ interface PostListProps {
   onLoadMore: () => void;
   onEdit: (postId: number, content: string) => Promise<boolean>;
   onDelete: (postId: number) => Promise<boolean>;
+  onToggleLike: (post: Post) => void;
+  isTogglingLike: (postId: number) => boolean;
+  onOpenDetail: (postId: number) => void;
 }
 
-export function PostList({ posts, hasMore, loadingMore, onLoadMore, onEdit, onDelete }: PostListProps) {
+export function PostList({
+  posts,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  onEdit,
+  onDelete,
+  onToggleLike,
+  isTogglingLike,
+  onOpenDetail,
+}: PostListProps) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // 一覧末尾の監視対象（sentinel）が画面内に入ったら、次のページを自動で読み込む（無限スクロール）。
@@ -36,7 +49,15 @@ export function PostList({ posts, hasMore, loadingMore, onLoadMore, onEdit, onDe
   return (
     <div className="post-list">
       {posts.map((post) => (
-        <PostItem key={post.id} post={post} onEdit={onEdit} onDelete={onDelete} />
+        <PostItem
+          key={post.id}
+          post={post}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onToggleLike={onToggleLike}
+          isTogglingLike={isTogglingLike(post.id)}
+          onOpenDetail={onOpenDetail}
+        />
       ))}
       <div ref={sentinelRef} className="post-list-sentinel">
         {loadingMore && <p className="text-sub">読み込み中...</p>}
