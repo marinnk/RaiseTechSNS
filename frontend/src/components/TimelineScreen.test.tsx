@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
@@ -240,7 +240,7 @@ describe('TimelineScreen', () => {
     expect(MockIntersectionObserver.instances).toHaveLength(0);
   });
 
-  it('ポーリング間隔経過後に新着投稿が一覧の先頭に追加される', async () => {
+  it('ポーリング間隔（30秒）経過後に新着通知バナーが件数付きで表示され、投稿はまだ一覧に反映されない', async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       'fetch',
@@ -261,12 +261,87 @@ describe('TimelineScreen', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(screen.getByText('元の投稿')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /新しい投稿があります/ })).not.toBeInTheDocument();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(30000);
     });
 
+    expect(screen.getByRole('button', { name: '↑ 1件の新しい投稿があります' })).toBeInTheDocument();
+    expect(screen.queryByText('新着投稿')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('新着通知バナーをクリックすると新着投稿が一覧の先頭に反映され、最上部までスクロールする', async () => {
+    vi.useFakeTimers();
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '元の投稿' })], hasMore: false },
+        }),
+        'GET /api/posts?limit=20&afterId=1': () => ({
+          status: 200,
+          body: { posts: [post({ id: 2, content: '新着投稿' })], hasMore: false },
+        }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    const banner = screen.getByRole('button', { name: /新しい投稿があります/ });
+
+    fireEvent.click(banner);
+
     expect(screen.getByText('新着投稿')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /新しい投稿があります/ })).not.toBeInTheDocument();
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+
+    scrollToSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('複数回のポーリングで新着件数が積み上がる', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '元の投稿' })], hasMore: false },
+        }),
+        'GET /api/posts?limit=20&afterId=1': () => ({
+          status: 200,
+          body: { posts: [post({ id: 2, content: '2件目の新着' })], hasMore: false },
+        }),
+        'GET /api/posts?limit=20&afterId=2': () => ({
+          status: 200,
+          body: { posts: [post({ id: 3, content: '3件目の新着' })], hasMore: false },
+        }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    expect(screen.getByRole('button', { name: '↑ 1件の新しい投稿があります' })).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000);
+    });
+    expect(screen.getByRole('button', { name: '↑ 2件の新しい投稿があります' })).toBeInTheDocument();
 
     vi.useRealTimers();
   });

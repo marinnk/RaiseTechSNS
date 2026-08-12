@@ -1,4 +1,5 @@
 import { usePosts } from '../hooks/usePosts';
+import { NewPostsBanner } from './NewPostsBanner';
 import { PostForm } from './PostForm';
 import { PostList } from './PostList';
 
@@ -17,15 +18,25 @@ export function TimelineScreen({ onLogout, logoutSubmitting }: TimelineScreenPro
     hasMore,
     error,
     submitting,
+    newPostsCount,
     loadMore,
     addPost,
     editPost,
     removePost,
+    showNewPosts,
     clearError,
   } = usePosts();
 
+  // バナーをクリックしたら、貯めておいた新着投稿を一覧の先頭に反映してから最上部へスクロールする
+  const handleShowNewPosts = () => {
+    showNewPosts();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="timeline-page">
+      {newPostsCount > 0 && <NewPostsBanner count={newPostsCount} onClick={handleShowNewPosts} />}
+
       <header className="timeline-header">
         <h1 className="timeline-logo">RaiseTechSNS</h1>
         <button type="button" className="link-button" onClick={onLogout} disabled={logoutSubmitting}>

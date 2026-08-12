@@ -4,8 +4,8 @@ import { createPost, deletePost, fetchPosts, updatePost } from '../api/posts';
 import type { Post } from '../types/post';
 
 const PAGE_SIZE = 20;
-// 他利用者の新規投稿をタイムラインに自動反映するためのポーリング間隔
-const POLL_INTERVAL_MS = 10000;
+// 他利用者の新規投稿を検知するためのポーリング間隔。投稿中の作業を頻繁に邪魔しないよう長めにする
+const POLL_INTERVAL_MS = 30000;
 
 function toErrorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.message : fallback;
@@ -29,6 +29,14 @@ export function usePosts() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // ポーリングで見つかった他利用者の新着投稿。スクロール位置をいきなり動かさないよう、
+  // 見つかった時点ではpostsに混ぜず、ここに貯めておいて「新着通知バナー」がクリックされたら反映する
+  const [newPosts, setNewPosts] = useState<Post[]>([]);
+  const newPostsRef = useRef<Post[]>([]);
+  useEffect(() => {
+    newPostsRef.current = newPosts;
+  }, [newPosts]);
+
   // 初回ロード
   useEffect(() => {
     let cancelled = false;
@@ -50,15 +58,17 @@ export function usePosts() {
     };
   }, []);
 
-  // 他利用者の新規投稿をポーリングで検知し、一覧の先頭に追加する
+  // 他利用者の新規投稿をポーリングで検知する。見つかった投稿はnewPostsに積み増すだけで、
+  // 一覧（posts）へはshowNewPosts()が呼ばれるまで反映しない
   useEffect(() => {
     const interval = setInterval(async () => {
-      const newestId = postsRef.current[0]?.id;
-      if (newestId === undefined) return;
+      // 既にnewPostsに貯まっている分があれば、その先頭（＝一番新しいid）を基準にする
+      const newestKnownId = newPostsRef.current[0]?.id ?? postsRef.current[0]?.id;
+      if (newestKnownId === undefined) return;
       try {
-        const res = await fetchPosts({ afterId: newestId, limit: PAGE_SIZE });
+        const res = await fetchPosts({ afterId: newestKnownId, limit: PAGE_SIZE });
         if (res.posts.length > 0) {
-          setPosts((prev) => [...res.posts, ...prev]);
+          setNewPosts((prev) => [...res.posts, ...prev]);
         }
       } catch (err) {
         // ポーリングの失敗は画面を止めるほどの問題ではないためログのみ
@@ -66,6 +76,13 @@ export function usePosts() {
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
+  }, []);
+
+  // 新着通知バナーがクリックされたら、貯めておいた新着投稿を一覧の先頭にまとめて反映する
+  const showNewPosts = useCallback(() => {
+    if (newPostsRef.current.length === 0) return;
+    setPosts((prev) => [...newPostsRef.current, ...prev]);
+    setNewPosts([]);
   }, []);
 
   const loadMore = useCallback(async () => {
@@ -134,10 +151,12 @@ export function usePosts() {
     hasMore,
     error,
     submitting,
+    newPostsCount: newPosts.length,
     loadMore,
     addPost,
     editPost,
     removePost,
+    showNewPosts,
     clearError,
   };
 }

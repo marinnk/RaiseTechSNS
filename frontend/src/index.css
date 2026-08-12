@@ -245,6 +245,29 @@ body {
   text-align: center;
 }
 
+/* 新着通知バナー：スクロール位置によらず常に画面上部に見えるフローティング表示 */
+
+.new-posts-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 10px 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.new-posts-banner:hover {
+  background: var(--color-primary-dark);
+}
+
 /* モーダル */
 
 .modal-overlay {
