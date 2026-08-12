@@ -37,6 +37,9 @@ ER図をMermaid記法（erDiagram）に変更
 **1.10 / 2026-08-12**  
 postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変更。サーバー・ブラウザが異なるタイムゾーンで動作する環境でも投稿日時の表示がずれないようにするための修正（品質チェックで判明した課題を解消）
 
+**1.11 / 2026-08-12**  
+コメント機能・いいね機能のAPI設計を追記（コメントの一覧取得・作成・削除エンドポイント、いいねの登録・解除エンドポイント）。投稿一覧・投稿詳細のレスポンスにいいね数・コメント数・いいね済みフラグを含める方針を明記。あわせてcomments・likesテーブルのpost_id外部キーにON DELETE CASCADEを追加するマイグレーションを追記
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -138,7 +141,7 @@ created_atとupdated_atは、サーバー・ブラウザのタイムゾーン設
 #### comments
 
 - id：BIGINT, PK, AUTO_INCREMENT
-- post_id：BIGINT, FK → posts.id, NOT NULL
+- post_id：BIGINT, FK → posts.id, NOT NULL, ON DELETE CASCADE（投稿削除時にコメントも削除する）
 - user_id：BIGINT, FK → users.id, NOT NULL（コメント者）
 - content：VARCHAR(280), NOT NULL
 - created_at：TIMESTAMP, NOT NULL
@@ -146,7 +149,7 @@ created_atとupdated_atは、サーバー・ブラウザのタイムゾーン設
 #### likes
 
 - id：BIGINT, PK, AUTO_INCREMENT
-- post_id：BIGINT, FK → posts.id, NOT NULL
+- post_id：BIGINT, FK → posts.id, NOT NULL, ON DELETE CASCADE（投稿削除時にいいねも削除する）
 - user_id：BIGINT, FK → users.id, NOT NULL（いいねした利用者）
 - created_at：TIMESTAMP, NOT NULL
 - UNIQUE制約：(post_id, user_id) の組み合わせ（同じ利用者が同じ投稿に2回いいねできないようにする）
@@ -266,6 +269,33 @@ erDiagram
 | DELETE | /api/posts/{postId} | 自分の投稿を削除する。他人の投稿を指定した場合は403 |
 
 エラーレスポンスは認証APIと同様、Spring標準の`ProblemDetail`（RFC 7807）に統一する。
+
+投稿一覧（`GET /api/posts`）・投稿詳細のレスポンスには、本文等に加えて`likeCount`（いいね数）・`commentCount`（コメント数）・`likedByMe`（ログイン中の利用者がいいね済みか）を含める。投稿ごとに個別クエリでこれらを数えると投稿件数分のクエリが発生してしまう（N+1問題）ため、投稿者情報と同じくJOIN・相関サブクエリで1回のSELECTにまとめて取得する（実装上はMyBatisの`PostMapper`が該当）。
+
+### コメントAPI
+
+コメント機能で追加したエンドポイント。いずれも認証必須。
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| GET | /api/posts/{postId}/comments | 指定した投稿のコメント一覧を古い順（`id ASC`）に取得する |
+| POST | /api/posts/{postId}/comments | 指定した投稿にコメントを作成する。リクエストボディ`{ content: string }`（1〜280文字） |
+| DELETE | /api/comments/{commentId} | 自分のコメントを削除する。他人のコメントを指定した場合は403 |
+
+コメント一覧も、コメント者情報を個別クエリではなく1回のJOINでまとめて取得し、N+1問題を避ける。
+
+### いいねAPI
+
+いいね機能で追加したエンドポイント。トグル式の1エンドポイントではなく、`likes`テーブルのUNIQUE制約（`post_id`, `user_id`）と対応する冪等な2エンドポイント（POST/DELETE）とする。いずれも認証必須。
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| POST | /api/posts/{postId}/likes | 投稿にいいねする。既にいいね済みの場合も200でエラーにせず現在の状態を返す（冪等） |
+| DELETE | /api/posts/{postId}/likes | 投稿へのいいねを取り消す。いいねしていない場合も200でエラーにせず現在の状態を返す（冪等） |
+
+どちらも`{ likeCount: number, likedByMe: boolean }`を返す。
+
+投稿削除時は、その投稿に紐づくコメント・いいねもデータベース側の外部キー制約（ON DELETE CASCADE）により自動的に削除される。
 
 ### ページネーション方式（カーソルベース）
 

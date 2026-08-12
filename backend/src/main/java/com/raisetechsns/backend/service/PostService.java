@@ -50,7 +50,7 @@ public class PostService {
             return listNewerThan(afterId, clampedLimit, currentUserId);
         }
 
-        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId);
+        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId, currentUserId);
         boolean hasMore = rows.size() > clampedLimit;
         List<PostWithAuthor> page = hasMore ? rows.subList(0, clampedLimit) : rows;
 
@@ -65,7 +65,7 @@ public class PostService {
      * レスポンスの並び順（新しい順）に揃えるためにここで反転する。
      */
     private PostListResponse listNewerThan(Long afterId, int limit, Long currentUserId) {
-        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit);
+        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit, currentUserId);
         List<PostResponse> posts = ascendingRows.stream()
                 .map(row -> PostResponse.from(row, currentUserId))
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -103,6 +103,18 @@ public class PostService {
     }
 
     /**
+     * 投稿の存在確認だけを行う（所有者チェックはしない）。コメント・いいねなど、投稿の存在を
+     * 前提とする他サービスから呼ばれる共通の入口。{@code requireOwnPost}と重複させないよう、
+     * 「投稿が存在するか」の判定ロジックはここに集約する。
+     *
+     * @throws ResponseStatusException 投稿が存在しない場合（404）
+     */
+    public void requirePostExists(Long postId) {
+        postMapper.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
+    }
+
+    /**
      * 投稿の存在確認と所有者チェックを行う。マッパーのUPDATE/DELETE文にも{@code user_id}条件を
      * 付けているが、他人の投稿かどうかを利用者に403として伝えるため、事前にここで判定する。
      */
@@ -115,7 +127,7 @@ public class PostService {
     }
 
     private PostResponse findByIdOrThrow(Long postId, Long currentUserId) {
-        PostWithAuthor row = postMapper.findByIdWithAuthor(postId)
+        PostWithAuthor row = postMapper.findByIdWithAuthor(postId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
         return PostResponse.from(row, currentUserId);
     }

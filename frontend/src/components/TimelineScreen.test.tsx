@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
 import { mockFetch } from '../testUtils/mockFetch';
 import { installIntersectionObserverMock, MockIntersectionObserver } from '../testUtils/mockIntersectionObserver';
+import type { Comment } from '../types/comment';
 import type { Post } from '../types/post';
 
 function post(overrides: Partial<Post> = {}): Post {
@@ -16,6 +17,22 @@ function post(overrides: Partial<Post> = {}): Post {
     createdAt: '2026-08-10T10:00:00',
     updatedAt: '2026-08-10T10:00:00',
     isOwnedByMe: true,
+    likeCount: 0,
+    commentCount: 0,
+    likedByMe: false,
+    ...overrides,
+  };
+}
+
+function comment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: 1,
+    postId: 1,
+    userId: 2,
+    username: 'jiro',
+    displayName: '次郎',
+    content: 'コメント本文',
+    isOwnedByMe: false,
     ...overrides,
   };
 }
@@ -344,5 +361,218 @@ describe('TimelineScreen', () => {
     expect(screen.getByRole('button', { name: '↑ 2件の新しい投稿があります' })).toBeInTheDocument();
 
     vi.useRealTimers();
+  });
+
+  it('いいねボタンを押すとlikeCountが即座に増えlikedByMeが反映される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿', likeCount: 0, likedByMe: false })], hasMore: false },
+        }),
+        'POST /api/posts/1/likes': () => ({ status: 200, body: { likeCount: 1, likedByMe: true } }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿');
+
+    const likeButton = screen.getByRole('button', { name: 'いいね 0' });
+    await user.click(likeButton);
+
+    expect(await screen.findByRole('button', { name: 'いいね 1' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('いいね済みの投稿でいいねを取り消すとlikeCountが減る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿', likeCount: 1, likedByMe: true })], hasMore: false },
+        }),
+        'DELETE /api/posts/1/likes': () => ({ status: 200, body: { likeCount: 0, likedByMe: false } }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿');
+
+    await user.click(screen.getByRole('button', { name: 'いいね 1' }));
+
+    expect(await screen.findByRole('button', { name: 'いいね 0' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('いいねAPIが失敗すると表示がロールバックされる', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿', likeCount: 0, likedByMe: false })], hasMore: false },
+        }),
+        'POST /api/posts/1/likes': () => ({ status: 500 }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿');
+
+    await user.click(screen.getByRole('button', { name: 'いいね 0' }));
+    // 楽観的更新で一瞬「いいね 1」になった後、失敗を検知してロールバックされる
+    expect(await screen.findByRole('button', { name: 'いいね 0' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('コメントリンクをクリックすると投稿詳細ビューに遷移し「戻る」で一覧に戻る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿本文', commentCount: 0 })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({ status: 200, body: { comments: [] } }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿本文');
+
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
+
+    expect(await screen.findByText('まだコメントがありません。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '← タイムラインに戻る' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
+
+    expect(screen.queryByText('まだコメントがありません。')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'コメント 0' })).toBeInTheDocument();
+  });
+
+  it('投稿詳細ビューでコメント一覧が表示される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿本文' })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({
+          status: 200,
+          body: { comments: [comment({ id: 10, content: '既存のコメント' })] },
+        }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿本文');
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
+
+    expect(await screen.findByText('既存のコメント')).toBeInTheDocument();
+  });
+
+  it('投稿詳細ビューでコメントを投稿すると一覧に追加されcommentCountが増える', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿本文', commentCount: 0 })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({ status: 200, body: { comments: [] } }),
+        'POST /api/posts/1/comments': () => ({
+          status: 201,
+          body: comment({ id: 20, content: '新しいコメント', isOwnedByMe: true }),
+        }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿本文');
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
+    await screen.findByText('まだコメントがありません。');
+
+    await user.type(screen.getByLabelText('コメント内容'), '新しいコメント');
+    await user.click(screen.getByRole('button', { name: 'コメントする' }));
+
+    expect(await screen.findByText('新しいコメント')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
+    expect(screen.getByRole('button', { name: 'コメント 1' })).toBeInTheDocument();
+  });
+
+  it('投稿詳細ビューで自分のコメントを削除するとcommentCountが減り、他人のコメントには削除ボタンが表示されない', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '投稿本文', commentCount: 2 })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({
+          status: 200,
+          body: {
+            comments: [
+              comment({ id: 10, content: '自分のコメント', isOwnedByMe: true }),
+              comment({ id: 11, content: '他人のコメント', isOwnedByMe: false }),
+            ],
+          },
+        }),
+        'DELETE /api/comments/10': () => ({ status: 204 }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('投稿本文');
+    await user.click(screen.getByRole('button', { name: 'コメント 2' }));
+    await screen.findByText('自分のコメント');
+
+    // 投稿自体にも「削除」ボタンがあるため、コメント一覧のスコープに絞って確認する
+    const commentList = document.querySelector<HTMLElement>('.comment-list');
+    if (!commentList) throw new Error('comment-list not found');
+    expect(within(commentList).getAllByRole('button', { name: '削除' })).toHaveLength(1);
+
+    await user.click(within(commentList).getByRole('button', { name: '削除' }));
+
+    expect(screen.queryByText('自分のコメント')).not.toBeInTheDocument();
+    expect(screen.getByText('他人のコメント')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
+    expect(screen.getByRole('button', { name: 'コメント 1' })).toBeInTheDocument();
+  });
+
+  it('投稿詳細ビューで自分の投稿を削除すると一覧ビューに自動的に戻る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '削除される投稿' })], hasMore: false },
+        }),
+        'GET /api/posts/1/comments': () => ({ status: 200, body: { comments: [] } }),
+        'DELETE /api/posts/1': () => ({ status: 204 }),
+      }),
+    );
+
+    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('削除される投稿');
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
+    await screen.findByRole('button', { name: '← タイムラインに戻る' });
+
+    await user.click(screen.getByRole('button', { name: '削除' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を削除' });
+    await user.click(within(dialog).getByRole('button', { name: '削除' }));
+
+    expect(await screen.findByText('まだ投稿がありません。')).toBeInTheDocument();
   });
 });

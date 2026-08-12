@@ -74,7 +74,7 @@ class PostServiceTest {
             inserted.setId(10L);
             return null;
         }).when(postMapper).insert(any(Post.class));
-        when(postMapper.findByIdWithAuthor(10L)).thenReturn(Optional.of(row(10L, 1L, "こんにちは")));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "こんにちは")));
 
         PostResponse result = postService.create(new CreatePostRequest("こんにちは"), currentUser);
 
@@ -90,7 +90,7 @@ class PostServiceTest {
         List<PostWithAuthor> rows = java.util.stream.IntStream.rangeClosed(1, 21)
                 .mapToObj(i -> row(i, 1L, "post" + i))
                 .toList();
-        when(postMapper.findAllWithAuthor(eq(21), isNull())).thenReturn(rows);
+        when(postMapper.findAllWithAuthor(eq(21), isNull(), eq(1L))).thenReturn(rows);
 
         PostListResponse result = postService.list(null, null, null, 1L);
 
@@ -100,7 +100,7 @@ class PostServiceTest {
 
     @Test
     void list_limit以下の件数ならhasMoreがfalseになる() {
-        when(postMapper.findAllWithAuthor(eq(21), isNull()))
+        when(postMapper.findAllWithAuthor(eq(21), isNull(), eq(1L)))
                 .thenReturn(List.of(row(2L, 1L, "b"), row(1L, 1L, "a")));
 
         PostListResponse result = postService.list(null, null, null, 1L);
@@ -120,7 +120,7 @@ class PostServiceTest {
     @Test
     void list_afterId指定時はfindNewerWithAuthorの結果を新しい順に並べ替えて返す() {
         // findNewerWithAuthorは古い順（id昇順）で返す想定。レスポンスは他の一覧と同じく新しい順にする
-        when(postMapper.findNewerWithAuthor(eq(1L), eq(20)))
+        when(postMapper.findNewerWithAuthor(eq(1L), eq(20), eq(1L)))
                 .thenReturn(List.of(row(2L, 1L, "2番目に古い新着"), row(3L, 1L, "最新の新着")));
 
         PostListResponse result = postService.list(null, null, 1L, 1L);
@@ -134,7 +134,7 @@ class PostServiceTest {
         // 1回のポーリング間隔でlimitを超える新着があっても、新しい方だけを返して
         // 間の投稿を永久に取りこぼすことがないよう、Serviceはfindmapper側の古い順の結果を
         // そのまま（並べ替えのみ）使う。つまりMapperにlimit+1件を要求する等の“打ち切り”を行わない
-        when(postMapper.findNewerWithAuthor(eq(1L), eq(2)))
+        when(postMapper.findNewerWithAuthor(eq(1L), eq(2), eq(1L)))
                 .thenReturn(List.of(row(2L, 1L, "取りこぼされてはいけない投稿"), row(3L, 1L, "その次に古い新着")));
 
         PostListResponse result = postService.list(2, null, 1L, 1L);
@@ -148,7 +148,7 @@ class PostServiceTest {
         User currentUser = user(1L);
         when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
         when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
-        when(postMapper.findByIdWithAuthor(10L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
 
         PostResponse result = postService.update(10L, new UpdatePostRequest("更新後"), currentUser);
 
@@ -206,6 +206,25 @@ class PostServiceTest {
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> postService.delete(999L, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void requirePostExists_投稿が存在すれば何も起きない() {
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+
+        postService.requirePostExists(10L);
+
+        // 例外が発生しなければ成功（CommentService・LikeServiceから共通で呼ばれる存在確認）
+    }
+
+    @Test
+    void requirePostExists_投稿が存在しなければNOT_FOUNDになる() {
+        when(postMapper.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> postService.requirePostExists(999L));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }

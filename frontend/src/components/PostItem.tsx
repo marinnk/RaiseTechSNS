@@ -8,11 +8,16 @@ interface PostItemProps {
   post: Post;
   onEdit: (postId: number, content: string) => Promise<boolean>;
   onDelete: (postId: number) => Promise<boolean>;
+  onToggleLike: (post: Post) => void;
+  isTogglingLike: boolean;
+  // 投稿詳細ビュー（S04）を開くリンクの表示要否・遷移先。渡さない場合はコメント件数を
+  // ただのテキストにする（詳細ビュー自身の中でPostItemを再利用する際、二重遷移を避けるため）
+  onOpenDetail?: (postId: number) => void;
 }
 
 type ModalMode = 'none' | 'edit' | 'delete';
 
-export function PostItem({ post, onEdit, onDelete }: PostItemProps) {
+export function PostItem({ post, onEdit, onDelete, onToggleLike, isTogglingLike, onOpenDetail }: PostItemProps) {
   const [modalMode, setModalMode] = useState<ModalMode>('none');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -52,6 +57,27 @@ export function PostItem({ post, onEdit, onDelete }: PostItemProps) {
         )}
       </div>
       <p className="post-content">{post.content}</p>
+
+      <div className="post-stats">
+        <button
+          type="button"
+          className={`like-button${post.likedByMe ? ' liked' : ''}`}
+          onClick={() => onToggleLike(post)}
+          disabled={isTogglingLike}
+          aria-pressed={post.likedByMe}
+        >
+          <span aria-hidden="true">{post.likedByMe ? '♥' : '♡'}</span> いいね {post.likeCount}
+        </button>
+        {onOpenDetail ? (
+          <button type="button" className="link-button comment-link" onClick={() => onOpenDetail(post.id)}>
+            <span aria-hidden="true">💬</span> コメント {post.commentCount}
+          </button>
+        ) : (
+          <span className="comment-count-label">
+            <span aria-hidden="true">💬</span> コメント {post.commentCount}
+          </span>
+        )}
+      </div>
 
       {modalMode === 'edit' && (
         <Modal onClose={closeModal} ariaLabel="投稿を編集">

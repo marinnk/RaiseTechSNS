@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.raisetechsns.backend.mapper.LikeMapper">
+
+    <insert id="insertIgnoreConflict">
+        INSERT INTO likes (post_id, user_id)
+        VALUES (#{postId}, #{userId})
+        ON CONFLICT ON CONSTRAINT uq_likes_post_user DO NOTHING
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM likes
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+</mapper>

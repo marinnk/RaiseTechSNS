@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.raisetechsns.backend.dto.CreateCommentRequest;
 import com.raisetechsns.backend.dto.CreatePostRequest;
 import com.raisetechsns.backend.dto.LoginRequest;
 import com.raisetechsns.backend.dto.RegisterRequest;
@@ -249,5 +250,52 @@ class PostControllerTest {
 
         mockMvc.perform(delete("/api/posts/" + postId).cookie(otherCookie))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void create_新規投稿はいいねコメント数0でlikedByMeがfalseで返る() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "create-counts@example.com");
+
+        mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("投稿")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.likeCount").value(0))
+                .andExpect(jsonPath("$.commentCount").value(0))
+                .andExpect(jsonPath("$.likedByMe").value(false));
+    }
+
+    @Test
+    void delete_いいね済みの投稿でも削除できる() throws Exception {
+        // V4マイグレーション（likes.post_idへのON DELETE CASCADE追加）の回帰テスト。
+        // CASCADEが無いと、いいねが付いた投稿の削除はFK制約違反で失敗する。
+        Cookie accessToken = registerAndLogin("taro", "delete-with-like@example.com");
+        var created = mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("いいねされる投稿")))
+                .andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+        mockMvc.perform(post("/api/posts/" + postId + "/likes").cookie(accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/posts/" + postId).cookie(accessToken))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void delete_コメント済みの投稿でも削除できる() throws Exception {
+        // V4マイグレーション（comments.post_idへのON DELETE CASCADE追加）の回帰テスト。
+        // CASCADEが無いと、コメントが付いた投稿の削除はFK制約違反で失敗する。
+        Cookie accessToken = registerAndLogin("taro", "delete-with-comment@example.com");
+        var created = mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken).contentType(MediaType.APPLICATION_JSON).content(postBody("コメントされる投稿")))
+                .andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateCommentRequest("コメント"))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/posts/" + postId).cookie(accessToken))
+                .andExpect(status().isNoContent());
     }
 }

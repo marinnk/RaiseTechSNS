@@ -7,6 +7,9 @@ export interface Post {
   createdAt: string;
   updatedAt: string;
   isOwnedByMe: boolean;
+  likeCount: number;
+  commentCount: number;
+  likedByMe: boolean;
 }
 
 export interface PostListResponse {
