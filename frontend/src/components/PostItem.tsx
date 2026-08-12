@@ -13,11 +13,21 @@ interface PostItemProps {
   // 投稿詳細ビュー（S04）を開くリンクの表示要否・遷移先。渡さない場合はコメント件数を
   // ただのテキストにする（詳細ビュー自身の中でPostItemを再利用する際、二重遷移を避けるため）
   onOpenDetail?: (postId: number) => void;
+  // 投稿者名クリックでプロフィール画面（S05）へ遷移させたい場合に渡す
+  onOpenProfile?: (userId: number) => void;
 }
 
 type ModalMode = 'none' | 'edit' | 'delete';
 
-export function PostItem({ post, onEdit, onDelete, onToggleLike, isTogglingLike, onOpenDetail }: PostItemProps) {
+export function PostItem({
+  post,
+  onEdit,
+  onDelete,
+  onToggleLike,
+  isTogglingLike,
+  onOpenDetail,
+  onOpenProfile,
+}: PostItemProps) {
   const [modalMode, setModalMode] = useState<ModalMode>('none');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -41,7 +51,13 @@ export function PostItem({ post, onEdit, onDelete, onToggleLike, isTogglingLike,
   return (
     <article className="post-item">
       <div className="post-item-header">
-        <span className="post-author">{post.displayName}</span>
+        {onOpenProfile ? (
+          <button type="button" className="link-button post-author" onClick={() => onOpenProfile(post.userId)}>
+            {post.displayName}
+          </button>
+        ) : (
+          <span className="post-author">{post.displayName}</span>
+        )}
         <time className="post-date" dateTime={post.createdAt}>
           {formatDate(post.createdAt)}
         </time>

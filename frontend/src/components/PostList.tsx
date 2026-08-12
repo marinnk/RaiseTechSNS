@@ -12,6 +12,7 @@ interface PostListProps {
   onToggleLike: (post: Post) => void;
   isTogglingLike: (postId: number) => boolean;
   onOpenDetail: (postId: number) => void;
+  onOpenProfile?: (userId: number) => void;
 }
 
 export function PostList({
@@ -24,6 +25,7 @@ export function PostList({
   onToggleLike,
   isTogglingLike,
   onOpenDetail,
+  onOpenProfile,
 }: PostListProps) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -57,6 +59,7 @@ export function PostList({
           onToggleLike={onToggleLike}
           isTogglingLike={isTogglingLike(post.id)}
           onOpenDetail={onOpenDetail}
+          onOpenProfile={onOpenProfile}
         />
       ))}
       <div ref={sentinelRef} className="post-list-sentinel">

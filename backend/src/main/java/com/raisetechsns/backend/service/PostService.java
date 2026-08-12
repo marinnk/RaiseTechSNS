@@ -39,18 +39,26 @@ public class PostService {
      *
      * @param beforeId 指定するとこのidより古い投稿を取得する（無限スクロールでの追加読み込み用）
      * @param afterId 指定するとこのidより新しい投稿を取得する（ポーリングでの新着差分取得用）
+     * @param targetUserId 指定するとこの利用者の投稿のみに絞り込む（プロフィール画面の投稿一覧用）
+     * @param followingOnly trueなら、フォロー中の利用者（および自分自身）の投稿のみに絞り込む
+     *     （タイムラインの「フォロー中」タブ用）。{@code targetUserId}と同時に指定はできない
      */
-    public PostListResponse list(Integer limit, Long beforeId, Long afterId, Long currentUserId) {
+    public PostListResponse list(Integer limit, Long beforeId, Long afterId, Long currentUserId,
+            Long targetUserId, boolean followingOnly) {
         if (beforeId != null && afterId != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "beforeId and afterId cannot be used together");
+        }
+        if (targetUserId != null && followingOnly) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId and scope=following cannot be used together");
         }
         int clampedLimit = clampLimit(limit);
 
         if (afterId != null) {
-            return listNewerThan(afterId, clampedLimit, currentUserId);
+            return listNewerThan(afterId, clampedLimit, currentUserId, targetUserId, followingOnly);
         }
 
-        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId, currentUserId);
+        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(
+                clampedLimit + 1, beforeId, currentUserId, targetUserId, followingOnly);
         boolean hasMore = rows.size() > clampedLimit;
         List<PostWithAuthor> page = hasMore ? rows.subList(0, clampedLimit) : rows;
 
@@ -64,8 +72,10 @@ public class PostService {
      * <p>{@code findNewerWithAuthor}は取りこぼしを防ぐため古い順に{@code limit}件だけ返すので、
      * レスポンスの並び順（新しい順）に揃えるためにここで反転する。
      */
-    private PostListResponse listNewerThan(Long afterId, int limit, Long currentUserId) {
-        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit, currentUserId);
+    private PostListResponse listNewerThan(Long afterId, int limit, Long currentUserId,
+            Long targetUserId, boolean followingOnly) {
+        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(
+                afterId, limit, currentUserId, targetUserId, followingOnly);
         List<PostResponse> posts = ascendingRows.stream()
                 .map(row -> PostResponse.from(row, currentUserId))
                 .collect(Collectors.toCollection(ArrayList::new));

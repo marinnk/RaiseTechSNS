@@ -20,11 +20,30 @@
         ) AS liked_by_me
     </sql>
 
+    <!--
+        targetUserId（プロフィール画面の投稿一覧）・followingOnly（タイムラインの「フォロー中」タブ）は
+        いずれもp.user_idに対する絞り込みで、liked_by_meと同じ相関EXISTSの考え方。followingOnlyの
+        EXISTSはidx_follows_follower_idで索引探索1回に収まるためN+1にはならない。
+    -->
+    <sql id="scopeFilter">
+        <if test="targetUserId != null">AND p.user_id = #{targetUserId}</if>
+        <if test="followingOnly">
+            AND (
+                p.user_id = #{currentUserId}
+                OR EXISTS (
+                    SELECT 1 FROM follows f WHERE f.follower_id = #{currentUserId} AND f.followee_id = p.user_id
+                )
+            )
+        </if>
+    </sql>
+
     <select id="findAllWithAuthor" resultType="com.raisetechsns.backend.entity.PostWithAuthor">
         SELECT <include refid="columnsWithAuthor"/>
         FROM posts p
         JOIN users u ON u.id = p.user_id
-        <if test="beforeId != null">WHERE p.id &lt; #{beforeId}</if>
+        WHERE 1 = 1
+        <if test="beforeId != null">AND p.id &lt; #{beforeId}</if>
+        <include refid="scopeFilter"/>
         ORDER BY p.id DESC
         LIMIT #{limit}
     </select>
@@ -35,6 +54,7 @@
         FROM posts p
         JOIN users u ON u.id = p.user_id
         WHERE p.id &gt; #{afterId}
+        <include refid="scopeFilter"/>
         ORDER BY p.id ASC
         LIMIT #{limit}
     </select>

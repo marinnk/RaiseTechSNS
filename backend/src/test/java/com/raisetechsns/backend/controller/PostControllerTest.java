@@ -196,6 +196,62 @@ class PostControllerTest {
     }
 
     @Test
+    void list_userIdを指定すると指定した利用者の投稿のみ取得できる() throws Exception {
+        Cookie tarosCookie = registerAndLogin("taro", "list-userid-taro@example.com");
+        Cookie jirosCookie = registerAndLogin("jiro", "list-userid-jiro@example.com");
+        var taroPost = mockMvc.perform(post("/api/posts")
+                        .cookie(tarosCookie).contentType(MediaType.APPLICATION_JSON).content(postBody("太郎の投稿")))
+                .andReturn();
+        int taroUserId = objectMapper.readTree(taroPost.getResponse().getContentAsString()).get("userId").asInt();
+        mockMvc.perform(post("/api/posts")
+                .cookie(jirosCookie).contentType(MediaType.APPLICATION_JSON).content(postBody("次郎の投稿")));
+
+        mockMvc.perform(get("/api/posts").param("userId", String.valueOf(taroUserId)).cookie(jirosCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(1))
+                .andExpect(jsonPath("$.posts[0].content").value("太郎の投稿"));
+    }
+
+    @Test
+    void list_scopeがfollowingならフォロー中と自分の投稿のみ取得できる() throws Exception {
+        Cookie tarosCookie = registerAndLogin("taro", "list-scope-taro@example.com");
+        Cookie jirosCookie = registerAndLogin("jiro", "list-scope-jiro@example.com");
+        Cookie hanakosCookie = registerAndLogin("hanako", "list-scope-hanako@example.com");
+        int jiroId = objectMapper.readTree(
+                mockMvc.perform(get("/api/auth/me").cookie(jirosCookie)).andReturn().getResponse().getContentAsString())
+                .get("id").asInt();
+        mockMvc.perform(post("/api/posts")
+                .cookie(tarosCookie).contentType(MediaType.APPLICATION_JSON).content(postBody("自分の投稿")));
+        mockMvc.perform(post("/api/posts")
+                .cookie(jirosCookie).contentType(MediaType.APPLICATION_JSON).content(postBody("フォロー中の投稿")));
+        mockMvc.perform(post("/api/posts")
+                .cookie(hanakosCookie).contentType(MediaType.APPLICATION_JSON).content(postBody("未フォローの投稿")));
+        mockMvc.perform(post("/api/users/" + jiroId + "/follow").cookie(tarosCookie));
+
+        mockMvc.perform(get("/api/posts").param("scope", "following").cookie(tarosCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(2))
+                .andExpect(jsonPath("$.posts[0].content").value("フォロー中の投稿"))
+                .andExpect(jsonPath("$.posts[1].content").value("自分の投稿"));
+    }
+
+    @Test
+    void list_userIdとscopeを同時に指定すると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-both-params@example.com");
+
+        mockMvc.perform(get("/api/posts").param("userId", "1").param("scope", "following").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_scopeに不正な値を指定すると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-invalid-scope@example.com");
+
+        mockMvc.perform(get("/api/posts").param("scope", "invalid").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void update_自分の投稿を編集できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "update-ok@example.com");
         var created = mockMvc.perform(post("/api/posts")

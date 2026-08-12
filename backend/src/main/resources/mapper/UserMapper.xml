@@ -36,4 +36,30 @@
         VALUES (#{username}, #{email}, #{passwordHash}, #{displayName})
     </insert>
 
+    <!--
+        フォロワー数・フォロー中数・ログイン中利用者がフォロー済みかどうかは、利用者ごとに
+        個別クエリで取得すると利用者件数分のクエリが発生してしまう（N+1問題）。そのため
+        PostMapperのcolumnsWithAuthorと同じく相関サブクエリ・EXISTSを使い1回のSELECTでまとめて
+        取得する。idx_follows_follower_id・idx_follows_followee_idが既にあるため、
+        各行についてインデックス探索1回で済み効率的。
+    -->
+    <sql id="columnsWithStats">
+        u.id, u.username, u.display_name, u.bio, u.avatar_url,
+        (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = u.id) AS follower_count,
+        (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = u.id) AS following_count,
+        EXISTS (
+            SELECT 1 FROM follows f3 WHERE f3.follower_id = #{currentUserId} AND f3.followee_id = u.id
+        ) AS followed_by_me
+    </sql>
+
+    <select id="findByIdWithStats" resultType="com.raisetechsns.backend.entity.UserWithStats">
+        SELECT <include refid="columnsWithStats"/>
+        FROM users u
+        WHERE u.id = #{id}
+    </select>
+
+    <update id="updateBio">
+        UPDATE users SET bio = #{bio}, updated_at = now() WHERE id = #{id}
+    </update>
+
 </mapper>
