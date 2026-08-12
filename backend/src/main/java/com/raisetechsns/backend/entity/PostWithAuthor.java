@@ -1,20 +1,23 @@
 package com.raisetechsns.backend.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * {@code posts}と{@code users}をJOINした1行分のデータの入れ物。
  *
  * <p>タイムラインの一覧・単体取得では投稿者の表示名・ユーザー名も必要になるため、
  * N+1クエリを避けて1回のSELECTでまとめて取得した結果をこの型で受け取る。
+ *
+ * <p>{@code createdAt}・{@code updatedAt}はDB側でTIMESTAMPTZ（タイムゾーン付き）として保存されており、
+ * サーバー・ブラウザのタイムゾーン設定に依存せず日時を一意に特定できるよう{@link OffsetDateTime}で扱う。
  */
 public class PostWithAuthor {
 
     private Long postId;
     private Long userId;
     private String content;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
     private String username;
     private String displayName;
 
@@ -42,19 +45,19 @@ public class PostWithAuthor {
         this.content = content;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
+    public OffsetDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 

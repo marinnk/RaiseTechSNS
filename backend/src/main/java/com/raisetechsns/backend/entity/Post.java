@@ -1,20 +1,23 @@
 package com.raisetechsns.backend.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * {@code posts}テーブルの1行に対応するデータの入れ物。
  *
  * <p>{@code id}・{@code createdAt}・{@code updatedAt}はDB側（自動採番・{@code DEFAULT now()}）で
  * 決まる値のため、登録時にJavaのコードから値を設定する必要はない。
+ *
+ * <p>{@code createdAt}・{@code updatedAt}はDB側でTIMESTAMPTZ（タイムゾーン付き）として保存されており、
+ * サーバー・ブラウザのタイムゾーン設定に依存せず日時を一意に特定できるよう{@link OffsetDateTime}で扱う。
  */
 public class Post {
 
     private Long id;
     private Long userId;
     private String content;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     public Long getId() {
         return id;
@@ -40,19 +43,19 @@ public class Post {
         this.content = content;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
+    public OffsetDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 }
