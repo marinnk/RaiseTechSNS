@@ -2,9 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.raisetechsns.backend.mapper.PostMapper">
 
+    <!--
+        いいね数・コメント数・ログイン中利用者がいいね済みかどうかは、投稿ごとに個別クエリで
+        取得すると投稿件数分のクエリが発生してしまう（N+1問題）。そのため相関サブクエリ・EXISTSを
+        使い、投稿者情報と同じく1回のSELECTでまとめて取得する。idx_likes_post_id・idx_comments_post_id
+        が既にあるため、この相関サブクエリは各行についてインデックス探索1回で済み効率的。
+        （「1つのSQL文の中でDBが内部的に索引探索する」ことと「アプリ側が投稿件数分のSQL文を
+        発行する」ことは全く別物であり、これはN+1ではない）
+    -->
     <sql id="columnsWithAuthor">
         p.id AS post_id, p.user_id, p.content, p.created_at, p.updated_at,
-        u.username, u.display_name
+        u.username, u.display_name,
+        (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+        EXISTS (
+            SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = #{currentUserId}
+        ) AS liked_by_me
     </sql>
 
     <select id="findAllWithAuthor" resultType="com.raisetechsns.backend.entity.PostWithAuthor">

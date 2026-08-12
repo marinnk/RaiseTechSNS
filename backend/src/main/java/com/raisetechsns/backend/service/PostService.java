@@ -50,7 +50,7 @@ public class PostService {
             return listNewerThan(afterId, clampedLimit, currentUserId);
         }
 
-        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId);
+        List<PostWithAuthor> rows = postMapper.findAllWithAuthor(clampedLimit + 1, beforeId, currentUserId);
         boolean hasMore = rows.size() > clampedLimit;
         List<PostWithAuthor> page = hasMore ? rows.subList(0, clampedLimit) : rows;
 
@@ -65,7 +65,7 @@ public class PostService {
      * レスポンスの並び順（新しい順）に揃えるためにここで反転する。
      */
     private PostListResponse listNewerThan(Long afterId, int limit, Long currentUserId) {
-        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit);
+        List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(afterId, limit, currentUserId);
         List<PostResponse> posts = ascendingRows.stream()
                 .map(row -> PostResponse.from(row, currentUserId))
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -115,7 +115,7 @@ public class PostService {
     }
 
     private PostResponse findByIdOrThrow(Long postId, Long currentUserId) {
-        PostWithAuthor row = postMapper.findByIdWithAuthor(postId)
+        PostWithAuthor row = postMapper.findByIdWithAuthor(postId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
         return PostResponse.from(row, currentUserId);
     }

@@ -20,7 +20,10 @@ public record PostResponse(
         String content,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        boolean isOwnedByMe
+        boolean isOwnedByMe,
+        long likeCount,
+        long commentCount,
+        boolean likedByMe
 ) {
 
     public static PostResponse from(PostWithAuthor row, Long currentUserId) {
@@ -32,6 +35,9 @@ public record PostResponse(
                 row.getContent(),
                 row.getCreatedAt(),
                 row.getUpdatedAt(),
-                row.getUserId().equals(currentUserId));
+                row.getUserId().equals(currentUserId),
+                row.getLikeCount(),
+                row.getCommentCount(),
+                row.isLikedByMe());
     }
 }
