@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.CreatePostRequest;
 import com.raisetechsns.backend.dto.PostListResponse;
@@ -37,8 +38,22 @@ public class PostController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) Long beforeId,
             @RequestParam(required = false) Long afterId,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false, defaultValue = "all") String scope,
             @AuthenticationPrincipal User user) {
-        return postService.list(limit, beforeId, afterId, user.getId());
+        return postService.list(limit, beforeId, afterId, user.getId(), userId, parseFollowingOnly(scope));
+    }
+
+    /**
+     * {@code scope}は{@code all}（絞り込みなし）・{@code following}（フォロー中タブ用）のみ許可する。
+     * それ以外の値はリクエストの誤りとして400にする。
+     */
+    private boolean parseFollowingOnly(String scope) {
+        return switch (scope) {
+            case "all" -> false;
+            case "following" -> true;
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "scope must be 'all' or 'following'");
+        };
     }
 
     @PostMapping

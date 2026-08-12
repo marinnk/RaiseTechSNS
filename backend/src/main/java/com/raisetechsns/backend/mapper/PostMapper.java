@@ -22,9 +22,13 @@ public interface PostMapper {
      * @param limit 取得件数の上限
      * @param beforeId 指定するとこのidより古い（idが小さい）投稿を取得する。nullなら最新の投稿から取得する
      * @param currentUserId ログイン中の利用者のid。各投稿をいいね済みかどうか（{@code likedByMe}）の判定に使う
+     * @param targetUserId 指定するとこの利用者の投稿のみに絞り込む（プロフィール画面の投稿一覧用）。nullなら絞り込まない
+     * @param followingOnly trueなら、ログイン中の利用者がフォロー中の利用者（および自分自身）の投稿のみに絞り込む
+     *     （タイムラインの「フォロー中」タブ用）
      */
     List<PostWithAuthor> findAllWithAuthor(
-            @Param("limit") int limit, @Param("beforeId") Long beforeId, @Param("currentUserId") Long currentUserId);
+            @Param("limit") int limit, @Param("beforeId") Long beforeId, @Param("currentUserId") Long currentUserId,
+            @Param("targetUserId") Long targetUserId, @Param("followingOnly") boolean followingOnly);
 
     /**
      * 投稿者情報付きの投稿一覧を{@code id}の昇順（古い順）で、指定したidより新しいものだけ取得する。
@@ -35,9 +39,13 @@ public interface PostMapper {
      * @param afterId このidより新しい（idが大きい）投稿を取得する
      * @param limit 取得件数の上限
      * @param currentUserId ログイン中の利用者のid。各投稿をいいね済みかどうか（{@code likedByMe}）の判定に使う
+     * @param targetUserId 指定するとこの利用者の投稿のみに絞り込む（プロフィール画面の投稿一覧用）。nullなら絞り込まない
+     * @param followingOnly trueなら、ログイン中の利用者がフォロー中の利用者（および自分自身）の投稿のみに絞り込む
+     *     （タイムラインの「フォロー中」タブ用）
      */
     List<PostWithAuthor> findNewerWithAuthor(
-            @Param("afterId") Long afterId, @Param("limit") int limit, @Param("currentUserId") Long currentUserId);
+            @Param("afterId") Long afterId, @Param("limit") int limit, @Param("currentUserId") Long currentUserId,
+            @Param("targetUserId") Long targetUserId, @Param("followingOnly") boolean followingOnly);
 
     Optional<PostWithAuthor> findByIdWithAuthor(@Param("id") Long id, @Param("currentUserId") Long currentUserId);
 
