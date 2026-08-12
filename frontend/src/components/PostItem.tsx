@@ -70,10 +70,12 @@ export function PostItem({ post, onEdit, onDelete, onToggleLike, isTogglingLike,
         </button>
         {onOpenDetail ? (
           <button type="button" className="link-button comment-link" onClick={() => onOpenDetail(post.id)}>
-            💬 コメント {post.commentCount}
+            <span aria-hidden="true">💬</span> コメント {post.commentCount}
           </button>
         ) : (
-          <span className="comment-count-label">💬 コメント {post.commentCount}</span>
+          <span className="comment-count-label">
+            <span aria-hidden="true">💬</span> コメント {post.commentCount}
+          </span>
         )}
       </div>
 

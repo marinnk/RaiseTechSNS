@@ -444,7 +444,7 @@ describe('TimelineScreen', () => {
     render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
 
-    await user.click(screen.getByRole('button', { name: '💬 コメント 0' }));
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
 
     expect(await screen.findByText('まだコメントがありません。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '← タイムラインに戻る' })).toBeInTheDocument();
@@ -452,7 +452,7 @@ describe('TimelineScreen', () => {
     await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
 
     expect(screen.queryByText('まだコメントがありません。')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '💬 コメント 0' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'コメント 0' })).toBeInTheDocument();
   });
 
   it('投稿詳細ビューでコメント一覧が表示される', async () => {
@@ -473,7 +473,7 @@ describe('TimelineScreen', () => {
 
     render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
-    await user.click(screen.getByRole('button', { name: '💬 コメント 0' }));
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
 
     expect(await screen.findByText('既存のコメント')).toBeInTheDocument();
   });
@@ -497,7 +497,7 @@ describe('TimelineScreen', () => {
 
     render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
-    await user.click(screen.getByRole('button', { name: '💬 コメント 0' }));
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
     await screen.findByText('まだコメントがありません。');
 
     await user.type(screen.getByLabelText('コメント内容'), '新しいコメント');
@@ -506,7 +506,7 @@ describe('TimelineScreen', () => {
     expect(await screen.findByText('新しいコメント')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
-    expect(screen.getByRole('button', { name: '💬 コメント 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'コメント 1' })).toBeInTheDocument();
   });
 
   it('投稿詳細ビューで自分のコメントを削除するとcommentCountが減り、他人のコメントには削除ボタンが表示されない', async () => {
@@ -533,7 +533,7 @@ describe('TimelineScreen', () => {
 
     render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
-    await user.click(screen.getByRole('button', { name: '💬 コメント 2' }));
+    await user.click(screen.getByRole('button', { name: 'コメント 2' }));
     await screen.findByText('自分のコメント');
 
     // 投稿自体にも「削除」ボタンがあるため、コメント一覧のスコープに絞って確認する
@@ -547,7 +547,7 @@ describe('TimelineScreen', () => {
     expect(screen.getByText('他人のコメント')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '← タイムラインに戻る' }));
-    expect(screen.getByRole('button', { name: '💬 コメント 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'コメント 1' })).toBeInTheDocument();
   });
 
   it('投稿詳細ビューで自分の投稿を削除すると一覧ビューに自動的に戻る', async () => {
@@ -566,7 +566,7 @@ describe('TimelineScreen', () => {
 
     render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('削除される投稿');
-    await user.click(screen.getByRole('button', { name: '💬 コメント 0' }));
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
     await screen.findByRole('button', { name: '← タイムラインに戻る' });
 
     await user.click(screen.getByRole('button', { name: '削除' }));
