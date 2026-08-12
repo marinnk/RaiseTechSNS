@@ -52,8 +52,27 @@ class JwtServiceTest {
     void parseUserId_改ざんされたトークンは例外になる() {
         JwtService jwtService = new JwtService(SECRET, 60_000L);
         String token = jwtService.generateToken(user(1L, "taro"));
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("a") ? "b" : "a");
+        String tampered = tamperPayloadMiddleChar(token);
 
         assertThrows(JwtException.class, () -> jwtService.parseUserId(tampered));
+    }
+
+    /**
+     * JWT（header.payload.signature）のpayload部分の、末尾ではない位置の1文字を書き換える。
+     * base64urlは3バイトごとに4文字に変換するため、セグメントの元データ長が3の倍数でない場合、
+     * セグメント末尾の文字には実データを持たない「paddingビット」が含まれることがある。
+     * 末尾1文字だけを書き換える方式だと、たまたまpaddingビットしか変化しない組み合わせに
+     * 当たった回だけデコード結果が変わらず、署名検証をすり抜けてテストが失敗（flaky）していた。
+     * セグメントの途中の文字であればpaddingの影響を受けないため、確実にデコード結果が変わり、
+     * 決定的に改ざんを検知できる。
+     */
+    private static String tamperPayloadMiddleChar(String token) {
+        String[] parts = token.split("\\.");
+        String payload = parts[1];
+        int middle = payload.length() / 2;
+        char original = payload.charAt(middle);
+        char replaced = original == 'a' ? 'b' : 'a';
+        String tamperedPayload = payload.substring(0, middle) + replaced + payload.substring(middle + 1);
+        return parts[0] + "." + tamperedPayload + "." + parts[2];
     }
 }
