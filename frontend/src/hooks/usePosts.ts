@@ -11,7 +11,11 @@ function toErrorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.message : fallback;
 }
 
-export function usePosts() {
+export function usePosts(scope: 'all' | 'following' = 'all') {
+  // バックエンドへは絞り込み無し（'all'）のときはscopeパラメータ自体を送らない（既存の
+  // GET /api/posts?limit=20 という呼び出し方を変えないため）。'following'のときだけ渡す
+  const apiScope = scope === 'following' ? 'following' : undefined;
+
   const [posts, setPosts] = useState<Post[]>([]);
   // ポーリング・追加読み込みは常に最新のpostsを参照したいが、
   // useEffect/useCallbackの依存配列にpostsを含めると再登録が頻発するためrefで持つ
@@ -37,12 +41,17 @@ export function usePosts() {
     newPostsRef.current = newPosts;
   }, [newPosts]);
 
-  // 初回ロード
+  // 初回ロード。scopeが変わったとき（「全体」⇔「フォロー中」タブの切り替え）も、
+  // 別の絞り込み条件での一覧として最初から取得し直す
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setPosts([]);
+    setNewPosts([]);
+    setHasMore(false);
     (async () => {
       try {
-        const res = await fetchPosts({ limit: PAGE_SIZE });
+        const res = await fetchPosts({ limit: PAGE_SIZE, scope: apiScope });
         if (!cancelled) {
           setPosts(res.posts);
           setHasMore(res.hasMore);
@@ -56,7 +65,7 @@ export function usePosts() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [apiScope]);
 
   // 他利用者の新規投稿をポーリングで検知する。見つかった投稿はnewPostsに積み増すだけで、
   // 一覧（posts）へはshowNewPosts()が呼ばれるまで反映しない
@@ -68,7 +77,7 @@ export function usePosts() {
       const newestKnownId = newPostsRef.current[0]?.id ?? postsRef.current[0]?.id;
       if (newestKnownId === undefined) return;
       try {
-        const res = await fetchPosts({ afterId: newestKnownId, limit: PAGE_SIZE });
+        const res = await fetchPosts({ afterId: newestKnownId, limit: PAGE_SIZE, scope: apiScope });
         if (!cancelled && res.posts.length > 0) {
           setNewPosts((prev) => [...res.posts, ...prev]);
         }
@@ -81,7 +90,7 @@ export function usePosts() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [apiScope]);
 
   // 新着通知バナーがクリックされたら、貯めておいた新着投稿を一覧の先頭にまとめて反映する
   const showNewPosts = useCallback(() => {
@@ -97,7 +106,7 @@ export function usePosts() {
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const res = await fetchPosts({ beforeId: oldestId, limit: PAGE_SIZE });
+      const res = await fetchPosts({ beforeId: oldestId, limit: PAGE_SIZE, scope: apiScope });
       setPosts((prev) => [...prev, ...res.posts]);
       setHasMore(res.hasMore);
     } catch (err) {
@@ -106,7 +115,7 @@ export function usePosts() {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, []);
+  }, [apiScope]);
 
   const addPost = useCallback(async (content: string): Promise<boolean> => {
     setError(null);

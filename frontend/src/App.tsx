@@ -30,7 +30,7 @@ function App() {
   }
 
   if (user) {
-    return <TimelineScreen onLogout={logout} logoutSubmitting={submitting} />;
+    return <TimelineScreen currentUser={user} onLogout={logout} logoutSubmitting={submitting} />;
   }
 
   if (screen === 'signup') {

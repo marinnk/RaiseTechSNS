@@ -4,13 +4,20 @@ interface CommentItemProps {
   comment: Comment;
   onDelete: (commentId: number) => Promise<boolean>;
   deleting: boolean;
+  onOpenProfile?: (userId: number) => void;
 }
 
-export function CommentItem({ comment, onDelete, deleting }: CommentItemProps) {
+export function CommentItem({ comment, onDelete, deleting, onOpenProfile }: CommentItemProps) {
   return (
     <article className="comment-item">
       <div className="comment-item-header">
-        <span className="comment-author">{comment.displayName}</span>
+        {onOpenProfile ? (
+          <button type="button" className="link-button comment-author" onClick={() => onOpenProfile(comment.userId)}>
+            {comment.displayName}
+          </button>
+        ) : (
+          <span className="comment-author">{comment.displayName}</span>
+        )}
         {comment.isOwnedByMe && (
           <button
             type="button"

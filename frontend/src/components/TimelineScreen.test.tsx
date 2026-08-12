@@ -4,8 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
 import { mockFetch } from '../testUtils/mockFetch';
 import { installIntersectionObserverMock, MockIntersectionObserver } from '../testUtils/mockIntersectionObserver';
+import type { AuthUser } from '../types/auth';
 import type { Comment } from '../types/comment';
 import type { Post } from '../types/post';
+import type { Profile } from '../types/profile';
+
+const currentUser: AuthUser = { id: 1, username: 'taro', displayName: '太郎', email: 'taro@example.com' };
 
 function post(overrides: Partial<Post> = {}): Post {
   return {
@@ -20,6 +24,21 @@ function post(overrides: Partial<Post> = {}): Post {
     likeCount: 0,
     commentCount: 0,
     likedByMe: false,
+    ...overrides,
+  };
+}
+
+function profile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    id: 2,
+    username: 'jiro',
+    displayName: '次郎',
+    bio: null,
+    avatarUrl: null,
+    followerCount: 0,
+    followingCount: 0,
+    followedByMe: false,
+    isOwnedByMe: false,
     ...overrides,
   };
 }
@@ -53,7 +72,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
 
     expect(await screen.findByText('一件目の投稿')).toBeInTheDocument();
   });
@@ -66,7 +85,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
 
     expect(await screen.findByText('まだ投稿がありません。')).toBeInTheDocument();
   });
@@ -81,7 +100,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('まだ投稿がありません。');
 
     await user.type(screen.getByLabelText('投稿内容'), 'はじめての投稿');
@@ -100,7 +119,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     const textarea = await screen.findByLabelText('投稿内容');
     const submitButton = screen.getByRole('button', { name: '投稿' });
 
@@ -128,7 +147,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('自分の投稿');
 
     expect(screen.getAllByRole('button', { name: '編集' })).toHaveLength(1);
@@ -148,7 +167,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('編集前');
 
     await user.click(screen.getByRole('button', { name: '編集' }));
@@ -175,7 +194,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('削除される投稿');
 
     await user.click(screen.getByRole('button', { name: '削除' }));
@@ -199,7 +218,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('編集前');
 
     await user.click(screen.getByRole('button', { name: '編集' }));
@@ -229,7 +248,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('新しい投稿');
 
     const observer = MockIntersectionObserver.instances.at(-1);
@@ -251,7 +270,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('唯一の投稿');
 
     expect(MockIntersectionObserver.instances).toHaveLength(0);
@@ -273,7 +292,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -307,7 +326,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -346,7 +365,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -376,7 +395,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿');
 
     const likeButton = screen.getByRole('button', { name: 'いいね 0' });
@@ -398,7 +417,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿');
 
     await user.click(screen.getByRole('button', { name: 'いいね 1' }));
@@ -419,7 +438,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿');
 
     await user.click(screen.getByRole('button', { name: 'いいね 0' }));
@@ -441,7 +460,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
 
     await user.click(screen.getByRole('button', { name: 'コメント 0' }));
@@ -471,7 +490,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
     await user.click(screen.getByRole('button', { name: 'コメント 0' }));
 
@@ -495,7 +514,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
     await user.click(screen.getByRole('button', { name: 'コメント 0' }));
     await screen.findByText('まだコメントがありません。');
@@ -531,7 +550,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('投稿本文');
     await user.click(screen.getByRole('button', { name: 'コメント 2' }));
     await screen.findByText('自分のコメント');
@@ -564,7 +583,7 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    render(<TimelineScreen onLogout={vi.fn()} logoutSubmitting={false} />);
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
     await screen.findByText('削除される投稿');
     await user.click(screen.getByRole('button', { name: 'コメント 0' }));
     await screen.findByRole('button', { name: '← タイムラインに戻る' });
@@ -574,5 +593,226 @@ describe('TimelineScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: '削除' }));
 
     expect(await screen.findByText('まだ投稿がありません。')).toBeInTheDocument();
+  });
+
+  it('投稿者名をクリックするとプロフィール画面に遷移する', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: {
+            posts: [post({ id: 1, userId: 2, username: 'jiro', displayName: '次郎', isOwnedByMe: false })],
+            hasMore: false,
+          },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2 }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('次郎');
+
+    await user.click(screen.getByRole('button', { name: '次郎' }));
+
+    expect(await screen.findByText('@jiro')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'フォローする' })).toBeInTheDocument();
+    expect(screen.getByText('自己紹介はまだ設定されていません。')).toBeInTheDocument();
+  });
+
+  it('ヘッダーの自分の表示名をクリックすると自分のプロフィールに遷移し、編集ボタンが表示される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+
+    expect(await screen.findByText('@taro')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'プロフィールを編集' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'フォローする' })).not.toBeInTheDocument();
+  });
+
+  it('フォローボタンを押すとフォロー中に切り替わりフォロワー数が増える', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: {
+            posts: [post({ id: 1, userId: 2, username: 'jiro', displayName: '次郎', isOwnedByMe: false })],
+            hasMore: false,
+          },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2, followerCount: 0, followedByMe: false }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'POST /api/users/2/follow': () => ({ status: 200, body: { followedByMe: true, followerCount: 1 } }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('次郎');
+    await user.click(screen.getByRole('button', { name: '次郎' }));
+    await screen.findByRole('button', { name: 'フォローする' });
+
+    await user.click(screen.getByRole('button', { name: 'フォローする' }));
+
+    expect(await screen.findByRole('button', { name: 'フォロー中' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '1 フォロワー' })).toBeInTheDocument();
+  });
+
+  it('フォロー中の人数をクリックすると一覧が表示される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: {
+            posts: [post({ id: 1, userId: 2, username: 'jiro', displayName: '次郎', isOwnedByMe: false })],
+            hasMore: false,
+          },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2, followingCount: 1 }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/2/following': () => ({
+          status: 200,
+          body: { users: [{ id: 3, username: 'saburo', displayName: '三郎', avatarUrl: null, followedByMe: false }] },
+        }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('次郎');
+    await user.click(screen.getByRole('button', { name: '次郎' }));
+    await screen.findByRole('button', { name: '1 フォロー中' });
+
+    await user.click(screen.getByRole('button', { name: '1 フォロー中' }));
+
+    expect(await screen.findByText('三郎')).toBeInTheDocument();
+    expect(screen.getByText('@saburo')).toBeInTheDocument();
+  });
+
+  it('プロフィール編集で自己紹介を保存すると反映される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true, bio: null }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'PUT /api/users/me': () => ({
+          status: 200,
+          body: profile({
+            id: 1,
+            username: 'taro',
+            displayName: '太郎',
+            isOwnedByMe: true,
+            bio: 'よろしくお願いします',
+          }),
+        }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('まだ投稿がありません。');
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await user.click(await screen.findByRole('button', { name: 'プロフィールを編集' }));
+
+    const textarea = await screen.findByLabelText('自己紹介（160文字まで）');
+    await user.type(textarea, 'よろしくお願いします');
+    await user.click(screen.getByRole('button', { name: '保存' }));
+
+    expect(await screen.findByText('よろしくお願いします')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
+  });
+
+  it('「フォロー中」タブに切り替えるとscope=followingで再取得される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: { posts: [post({ id: 1, content: '全体タブの投稿' })], hasMore: false },
+        }),
+        'GET /api/posts?limit=20&scope=following': () => ({
+          status: 200,
+          body: { posts: [post({ id: 2, content: 'フォロー中タブの投稿' })], hasMore: false },
+        }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('全体タブの投稿');
+
+    await user.click(screen.getByRole('tab', { name: 'フォロー中' }));
+
+    expect(await screen.findByText('フォロー中タブの投稿')).toBeInTheDocument();
+    expect(screen.queryByText('全体タブの投稿')).not.toBeInTheDocument();
+  });
+
+  it('プロフィール画面の投稿をクリックすると詳細ビューに遷移し「プロフィールに戻る」で戻る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: {
+            posts: [post({ id: 1, userId: 2, username: 'jiro', displayName: '次郎', isOwnedByMe: false })],
+            hasMore: false,
+          },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2 }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({
+          status: 200,
+          body: {
+            posts: [
+              post({
+                id: 5,
+                userId: 2,
+                username: 'jiro',
+                displayName: '次郎',
+                content: 'プロフィール限定の投稿',
+                isOwnedByMe: false,
+              }),
+            ],
+            hasMore: false,
+          },
+        }),
+        'GET /api/posts/5/comments': () => ({ status: 200, body: { comments: [] } }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('次郎');
+    await user.click(screen.getByRole('button', { name: '次郎' }));
+    await screen.findByText('プロフィール限定の投稿');
+
+    await user.click(screen.getByRole('button', { name: 'コメント 0' }));
+
+    expect(await screen.findByRole('button', { name: '← プロフィールに戻る' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '← プロフィールに戻る' }));
+
+    expect(await screen.findByText('プロフィール限定の投稿')).toBeInTheDocument();
   });
 });
