@@ -149,6 +149,21 @@ export function usePosts() {
 
   const clearError = useCallback(() => setError(null), []);
 
+  // いいねボタン（useLikes）から呼ばれる。likeCount/likedByMeを一覧・詳細ビュー共通の
+  // 唯一の情報源であるposts配列に反映する
+  const applyLikeUpdate = useCallback(
+    (postId: number, patch: { likeCount: number; likedByMe: boolean }) => {
+      setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, ...patch } : post)));
+    },
+    [],
+  );
+
+  // コメントの投稿・削除（useComments）から呼ばれる。posts配列側のcommentCountを増減させる
+  const bumpCommentCount = useCallback((postId: number, delta: number) => {
+    setPosts((prev) =>
+      prev.map((post) => (post.id === postId ? { ...post, commentCount: post.commentCount + delta } : post)));
+  }, []);
+
   return {
     posts,
     loading,
@@ -163,5 +178,7 @@ export function usePosts() {
     removePost,
     showNewPosts,
     clearError,
+    applyLikeUpdate,
+    bumpCommentCount,
   };
 }

@@ -16,6 +16,9 @@ function post(overrides: Partial<Post> = {}): Post {
     createdAt: '2026-08-10T10:00:00',
     updatedAt: '2026-08-10T10:00:00',
     isOwnedByMe: true,
+    likeCount: 0,
+    commentCount: 0,
+    likedByMe: false,
     ...overrides,
   };
 }

@@ -110,3 +110,13 @@ export async function apiDelete(path: string): Promise<void> {
   const res = await request(path, { method: 'DELETE' });
   await throwIfError(res);
 }
+
+/**
+ * レスポンスボディがあるDELETEリクエスト用（いいね解除など）。
+ * 既存のapiDeleteはボディを読まないvoid専用のため、別関数として用意する。
+ */
+export async function apiDeleteWithResponse<T>(path: string): Promise<T> {
+  const res = await request(path, { method: 'DELETE' });
+  await throwIfError(res);
+  return res.json() as Promise<T>;
+}
