@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.raisetechsns.backend.mapper.FollowMapper">
+
+    <insert id="insertIgnoreConflict">
+        INSERT INTO follows (follower_id, followee_id)
+        VALUES (#{followerId}, #{followeeId})
+        ON CONFLICT ON CONSTRAINT uq_follows_follower_followee DO NOTHING
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM follows
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </delete>
+
+    <sql id="userSummaryColumns">
+        u.id, u.username, u.display_name, u.avatar_url,
+        EXISTS (
+            SELECT 1 FROM follows f2 WHERE f2.follower_id = #{currentUserId} AND f2.followee_id = u.id
+        ) AS followed_by_me
+    </sql>
+
+    <!--
+        フォロワー・フォロー中一覧は、利用者ごとの個別クエリではなくJOIN1回＋行ごとのインデックス探索
+        1回のEXISTSで完結させ、N+1問題を避ける。学習規模のデータ量を前提にカーソルページネーションは
+        導入せず、安全弁としてLIMITのみ付ける。
+    -->
+    <select id="findFollowers" resultType="com.raisetechsns.backend.entity.UserFollowSummary">
+        SELECT <include refid="userSummaryColumns"/>
+        FROM follows f
+        JOIN users u ON u.id = f.follower_id
+        WHERE f.followee_id = #{userId}
+        ORDER BY f.id DESC
+        LIMIT 500
+    </select>
+
+    <select id="findFollowing" resultType="com.raisetechsns.backend.entity.UserFollowSummary">
+        SELECT <include refid="userSummaryColumns"/>
+        FROM follows f
+        JOIN users u ON u.id = f.followee_id
+        WHERE f.follower_id = #{userId}
+        ORDER BY f.id DESC
+        LIMIT 500
+    </select>
+
+</mapper>
