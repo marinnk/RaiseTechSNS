@@ -83,6 +83,16 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await request(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  await throwIfError(res);
+  return res.json() as Promise<T>;
+}
+
 /**
  * レスポンスボディが無い（204 No Content等）POSTリクエスト用。
  * apiPostと違い、成功時に`.json()`を呼ばない。

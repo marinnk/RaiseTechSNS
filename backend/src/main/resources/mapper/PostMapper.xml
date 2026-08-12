@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.raisetechsns.backend.mapper.PostMapper">
+
+    <sql id="columnsWithAuthor">
+        p.id AS post_id, p.user_id, p.content, p.created_at, p.updated_at,
+        u.username, u.display_name
+    </sql>
+
+    <select id="findAllWithAuthor" resultType="com.raisetechsns.backend.entity.PostWithAuthor">
+        SELECT <include refid="columnsWithAuthor"/>
+        FROM posts p
+        JOIN users u ON u.id = p.user_id
+        <where>
+            <if test="beforeId != null">p.id &lt; #{beforeId}</if>
+            <if test="afterId != null">p.id &gt; #{afterId}</if>
+        </where>
+        ORDER BY p.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByIdWithAuthor" resultType="com.raisetechsns.backend.entity.PostWithAuthor">
+        SELECT <include refid="columnsWithAuthor"/>
+        FROM posts p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.id = #{id}
+    </select>
+
+    <select id="findById" resultType="com.raisetechsns.backend.entity.Post">
+        SELECT id, user_id, content, created_at, updated_at
+        FROM posts
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        id・created_at・updated_atはDB側（自動採番・DEFAULT now()）に任せるため、
+        INSERT文には含めない。useGeneratedKeys/keyPropertyにより、
+        採番されたidが実行後にpost.idへ反映される。
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (user_id, content)
+        VALUES (#{userId}, #{content})
+    </insert>
+
+    <update id="update">
+        UPDATE posts
+        SET content = #{content}, updated_at = now()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM posts
+        WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+</mapper>
