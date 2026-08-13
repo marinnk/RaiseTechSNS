@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -342,6 +343,24 @@ class PostServiceTest {
                         10L, new UpdatePostRequest("更新後", keepAll), List.of(jpegFile("new.jpg")), currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void update_keepImageIdsに同じidを複数含めても重複挿入されない() {
+        // コードレビューで発見・修正した不具合の再発防止テスト。keepImageIdsの重複除去が
+        // 枚数チェックにしか使われず、再挿入ループが重複を含みうる元のリストをそのまま使っていると、
+        // 同じ画像が複数回insertされ4枚上限をすり抜けてしまう
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
+        PostImage existing = postImage(1L, 10L, "https://example.com/posts/keep.jpg", 0);
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of(existing));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
+
+        postService.update(
+                10L, new UpdatePostRequest("更新後", List.of(1L, 1L, 1L, 1L)), List.of(), currentUser);
+
+        verify(postImageMapper, times(1)).insert(10L, "https://example.com/posts/keep.jpg", 0);
     }
 
     @Test

@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.mockito.Answers;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -47,8 +48,10 @@ class PostControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // 実際のS3には接続せず、アップロードの呼び出しだけを検証するためモックに差し替える
-    @MockitoBean
+    // 実際のS3には接続せず、アップロードの呼び出しだけを検証するためモックに差し替える。
+    // deleteAfterCommitはStorageServiceのdefaultメソッドのため、CALLS_REAL_METHODSを指定しないと
+    // 本体が実行されず素通りしてしまう（PostServiceTest・ProfileServiceTestと同じ理由）
+    @MockitoBean(answers = Answers.CALLS_REAL_METHODS)
     private StorageService storageService;
 
     private Cookie registerAndLogin(String username, String email) throws Exception {
@@ -121,6 +124,20 @@ class PostControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.createdAt", matchesPattern(".*(Z|[+-]\\d{2}:\\d{2})$")))
                 .andExpect(jsonPath("$.updatedAt", matchesPattern(".*(Z|[+-]\\d{2}:\\d{2})$")));
+    }
+
+    @Test
+    void create_application_jsonで送ると415になる() throws Exception {
+        // POST /api/postsはmultipart/form-data専用（consumes指定）になったため、application/jsonで
+        // 送るとSpring MVCがHttpMediaTypeNotSupportedExceptionを投げる。GlobalExceptionHandlerに
+        // 専用のハンドラーが無いと500になってしまう不具合の再発防止テスト
+        Cookie accessToken = registerAndLogin("taro", "create-wrong-content-type@example.com");
+
+        mockMvc.perform(post("/api/posts")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreatePostRequest("投稿"))))
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test

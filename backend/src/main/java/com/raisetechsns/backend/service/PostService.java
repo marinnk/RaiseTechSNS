@@ -2,7 +2,7 @@ package com.raisetechsns.backend.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -157,7 +157,11 @@ public class PostService {
         Map<Long, PostImage> existingImagesById = existingImages.stream()
                 .collect(Collectors.toMap(PostImage::getId, image -> image));
 
-        Set<Long> keepImageIds = new HashSet<>(request.keepImageIds());
+        // LinkedHashSetで重複を除きつつ、クライアントが送ってきた順序を保つ。以前はここでの重複除去が
+        // 検証（枚数チェック）にしか使われず、下の再挿入ループは重複を含みうる元のList
+        // （request.keepImageIds()）を直接forEachしていたため、同じidを複数回送ると
+        // 枚数チェックをすり抜けて同じ画像が複数行insertされてしまう不具合があった
+        Set<Long> keepImageIds = new LinkedHashSet<>(request.keepImageIds());
         if (!existingImagesById.keySet().containsAll(keepImageIds)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "keepImageIds contains an unknown image id");
         }
@@ -173,7 +177,7 @@ public class PostService {
 
         postImageMapper.deleteByPostId(postId);
         int order = 0;
-        for (Long keepId : request.keepImageIds()) {
+        for (Long keepId : keepImageIds) {
             PostImage kept = existingImagesById.get(keepId);
             postImageMapper.insert(postId, kept.getImageUrl(), order++);
         }
