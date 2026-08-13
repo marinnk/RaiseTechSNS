@@ -1,11 +1,13 @@
 package com.raisetechsns.backend.mapper;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.raisetechsns.backend.entity.User;
+import com.raisetechsns.backend.entity.UserFollowSummary;
 import com.raisetechsns.backend.entity.UserWithStats;
 
 /**
@@ -58,4 +60,14 @@ public interface UserMapper {
      * @return 更新できた件数（0なら対象が存在しない）
      */
     int updateAvatarUrl(@Param("id") Long id, @Param("avatarUrl") String avatarUrl);
+
+    /**
+     * ユーザー名・表示名の部分一致でユーザーを検索する。戻り値の形は{@link FollowMapper}の
+     * フォロワー・フォロー中一覧と全く同じ（アイコン・表示名・ユーザー名・フォロー済みかどうか）
+     * のため、新規entityは作らず{@link UserFollowSummary}をそのまま再利用する。
+     *
+     * @param keyword 空でないトリム済みの検索キーワード（呼び出し元で保証する）
+     * @param currentUserId ログイン中の利用者のid。{@code followedByMe}の判定に使う
+     */
+    List<UserFollowSummary> searchByKeyword(@Param("keyword") String keyword, @Param("currentUserId") Long currentUserId);
 }

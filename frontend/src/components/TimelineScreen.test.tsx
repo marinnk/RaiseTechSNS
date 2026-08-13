@@ -827,6 +827,67 @@ describe('TimelineScreen', () => {
     expect(screen.queryByRole('button', { name: 'フォローする' })).not.toBeInTheDocument();
   });
 
+  it('ヘッダーの「検索」からユーザーを検索し、結果からプロフィールに遷移できる', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users?q=jiro': () => ({
+          status: 200,
+          body: { users: [{ id: 2, username: 'jiro', displayName: '次郎', avatarUrl: null, followedByMe: false }] },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2 }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.click(screen.getByRole('button', { name: '検索' }));
+    await user.type(screen.getByLabelText('ユーザー名・表示名で検索'), 'jiro');
+    await user.click(within(screen.getByRole('search')).getByRole('button', { name: '検索' }));
+
+    await user.click(await screen.findByRole('button', { name: /次郎/ }));
+
+    expect(await screen.findByText('@jiro')).toBeInTheDocument();
+  });
+
+  it('ユーザー検索で該当する利用者がいない場合はその旨を表示する', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users?q=nobody': () => ({ status: 200, body: { users: [] } }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.click(screen.getByRole('button', { name: '検索' }));
+    await user.type(screen.getByLabelText('ユーザー名・表示名で検索'), 'nobody');
+    await user.click(within(screen.getByRole('search')).getByRole('button', { name: '検索' }));
+
+    expect(await screen.findByText('該当する利用者が見つかりませんでした。')).toBeInTheDocument();
+  });
+
   it('フォローボタンを押すとフォロー中に切り替わりフォロワー数が増える', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

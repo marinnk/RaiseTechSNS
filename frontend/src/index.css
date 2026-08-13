@@ -670,3 +670,67 @@ body {
   width: 100%;
   margin: 0;
 }
+
+/* ユーザー検索画面（S07） */
+
+.search-screen .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.search-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-form input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.search-form input[type='text']:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  padding: 12px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.search-result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.search-result-display-name {
+  font-weight: bold;
+}
+
+.search-result-username {
+  color: var(--color-text-sub);
+  font-size: 13px;
+}

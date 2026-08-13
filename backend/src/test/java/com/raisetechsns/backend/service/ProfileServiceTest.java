@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.ProfileResponse;
 import com.raisetechsns.backend.dto.UpdateProfileRequest;
+import com.raisetechsns.backend.dto.UserSummaryResponse;
 import com.raisetechsns.backend.entity.User;
+import com.raisetechsns.backend.entity.UserFollowSummary;
 import com.raisetechsns.backend.entity.UserWithStats;
 import com.raisetechsns.backend.mapper.UserMapper;
 import com.raisetechsns.backend.storage.StorageService;
@@ -220,6 +223,41 @@ class ProfileServiceTest {
 
         verify(storageService, never()).delete(any());
         verify(userMapper, never()).updateAvatarUrl(any(), any());
+    }
+
+    @Test
+    void searchUsers_マッパーの検索結果をレスポンスに変換する() {
+        UserFollowSummary summary = new UserFollowSummary();
+        summary.setId(2L);
+        summary.setUsername("jiro");
+        summary.setDisplayName("次郎");
+        summary.setAvatarUrl(null);
+        summary.setFollowedByMe(true);
+        when(userMapper.searchByKeyword("jiro", 1L)).thenReturn(List.of(summary));
+
+        List<UserSummaryResponse> result = profileService.searchUsers("jiro", 1L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).username()).isEqualTo("jiro");
+        assertThat(result.get(0).followedByMe()).isTrue();
+    }
+
+    @Test
+    void searchUsers_前後の空白はtrimしてから検索する() {
+        when(userMapper.searchByKeyword("jiro", 1L)).thenReturn(List.of());
+
+        profileService.searchUsers("  jiro  ", 1L);
+
+        verify(userMapper).searchByKeyword("jiro", 1L);
+    }
+
+    @Test
+    void searchUsers_空文字ならBAD_REQUESTになりマッパーを呼ばない() {
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> profileService.searchUsers("   ", 1L));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(userMapper, never()).searchByKeyword(any(), any());
     }
 
     @Test

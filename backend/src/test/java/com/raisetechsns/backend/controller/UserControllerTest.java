@@ -195,4 +195,38 @@ class UserControllerTest {
         mockMvc.perform(delete("/api/users/me/avatar"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void search_ユーザー名の部分一致で検索できる() throws Exception {
+        registerAndLogin("taro-search", "search-taro@example.com");
+        Cookie accessToken = registerAndLogin("jiro-search", "search-jiro@example.com");
+
+        mockMvc.perform(get("/api/users").param("q", "taro-sea").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users[0].username").value("taro-search"));
+    }
+
+    @Test
+    void search_該当する利用者がいない場合は空配列になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "search-empty@example.com");
+
+        mockMvc.perform(get("/api/users").param("q", "no-such-user-xyz").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").isArray())
+                .andExpect(jsonPath("$.users").isEmpty());
+    }
+
+    @Test
+    void search_キーワードが空文字なら400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "search-blank@example.com");
+
+        mockMvc.perform(get("/api/users").param("q", "   ").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_未認証なら401になる() throws Exception {
+        mockMvc.perform(get("/api/users").param("q", "taro"))
+                .andExpect(status().isUnauthorized());
+    }
 }
