@@ -83,5 +83,13 @@ export function useAuth() {
     setError(null);
   }, []);
 
-  return { user, sessionStatus, submitting, error, login, register, logout, clearError };
+  // プロフィール編集画面でアバター画像を登録・削除したとき、ヘッダー等で使うログイン中
+  // 利用者の情報（useAuthが持つuser）にも反映するための更新口。プロフィール取得時に
+  // 別途保持しているProfileとuserは別のstateのため、片方を更新してももう片方には
+  // 自動反映されない（usePostStoreのapplyLikeUpdateと同じ理由の一元反映パターン）
+  const updateAvatarUrl = useCallback((avatarUrl: string | null) => {
+    setUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+  }, []);
+
+  return { user, sessionStatus, submitting, error, login, register, logout, clearError, updateAvatarUrl };
 }

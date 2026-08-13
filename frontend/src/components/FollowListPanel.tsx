@@ -1,5 +1,6 @@
 import type { FollowListType } from '../hooks/useFollowList';
 import type { UserSummary } from '../types/follow';
+import { AvatarIcon } from './AvatarIcon';
 
 interface FollowListPanelProps {
   type: FollowListType;
@@ -27,6 +28,7 @@ export function FollowListPanel({ type, users, loading, onSelectUser }: FollowLi
           {users.map((user) => (
             <li key={user.id}>
               <button type="button" className="follow-list-item" onClick={() => onSelectUser(user.id)}>
+                <AvatarIcon avatarUrl={user.avatarUrl} />
                 <span className="follow-list-display-name">{user.displayName}</span>
                 <span className="follow-list-username">@{user.username}</span>
               </button>

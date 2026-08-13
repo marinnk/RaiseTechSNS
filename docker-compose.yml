@@ -17,5 +17,38 @@ services:
       timeout: 5s
       retries: 10
 
+  # プロフィール画像（アバター）の保存先。ローカル開発では実際のAmazon S3の代わりに、
+  # S3互換のOSSであるMinIOを使う（AWSアカウント・課金なしでStorageService（S3StorageService）を
+  # 実際に動かして確認できる）。本番相当の環境ではAWS_S3_ENDPOINTを空にして実際のS3に向ける
+  minio:
+    image: minio/minio:latest
+    container_name: raisetechsns-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
+  # 起動後に一度だけ実行し、バケット作成とアバター画像を匿名で読み取れるようにする設定を行う
+  # （ブラウザが<img src>で直接S3/MinIOから画像を取得するため、GetObjectだけ公開する）
+  minio-init:
+    image: minio/mc:latest
+    container_name: raisetechsns-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 1; done;
+      mc mb --ignore-existing local/${AWS_S3_BUCKET:-raisetechsns-avatars};
+      mc anonymous set download local/${AWS_S3_BUCKET:-raisetechsns-avatars};
+      exit 0;
+      "
+
 volumes:
   db-data:
+  minio-data:

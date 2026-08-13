@@ -35,12 +35,14 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 - ユーザー登録・ログイン・ログアウトのバックエンドAPI（Spring Security + アクセストークン＋リフレッシュトークン方式のJWT認証）、およびフロントエンドの新規登録・ログイン画面
 - 投稿（テキストのみ）の作成・編集・削除API、およびログイン後のタイムライン画面（全利用者の投稿を新しい順に一覧表示、無限スクロールでの追加読み込み、他利用者の新着投稿を検知する新着通知バナー）
 - いいね・コメントのAPI、および投稿詳細画面（S04。投稿へのいいね・コメント一覧表示・コメント投稿・自分のコメント削除）
+- プロフィール取得・自己紹介編集・フォロー登録/解除のAPI、およびプロフィール画面・プロフィール編集画面・タイムラインの「フォロー中」タブ
+- プロフィール画像（アイコン）の登録・更新・削除API（Amazon S3連携）、およびプロフィール編集画面での画像選択・削除UI
 
-画像投稿・フォロー（「フォロー中」タブ）・プロフィール画面・ユーザー検索画面は未実装です。これらは今後、段階的に実装します。
+投稿への画像添付・ユーザー検索画面は未実装です。これらは今後、段階的に実装します。
 
 ## セットアップ
 
-### PostgreSQL（Docker）の起動
+### PostgreSQL・MinIO（Docker）の起動
 
 前提: Docker / Docker Compose が必要です。
 
@@ -48,7 +50,10 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 docker compose up -d
 ```
 
-デフォルトでは `localhost:5432` にDB名 `raisetechsns`、ユーザー/パスワード `raisetechsns` で起動します（`.env.example` を参考に `.env` を作成すると値を変更できます）。
+PostgreSQLに加えて、プロフィール画像の保存先であるMinIO（S3互換のローカルストレージ）も一緒に起動します。
+
+- PostgreSQL：デフォルトでは `localhost:5432` にDB名 `raisetechsns`、ユーザー/パスワード `raisetechsns` で起動します（`.env.example` を参考に `.env` を作成すると値を変更できます）
+- MinIO：APIは `localhost:9000`、管理コンソールは [http://localhost:9001](http://localhost:9001)（ユーザー名/パスワードともデフォルト `minioadmin`）。起動時に`minio-init`コンテナが自動的にバケット（`raisetechsns-avatars`）を作成し、匿名での画像ダウンロードを許可する設定まで行うため、追加の手動セットアップは不要です
 
 ### バックエンド（Spring Boot）
 
@@ -65,6 +70,16 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
 DB接続先はデフォルトでDocker Composeの設定と一致していますが、環境変数（`DB_HOST` / `DB_PORT` / `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`）で上書きできます。
 
 ログイン用JWTの署名鍵は環境変数`JWT_SECRET`で上書きできます（未設定時は開発用のデフォルト値を使用しますが、本番相当の環境では必ず上書きしてください）。認証はアクセストークン（短命）とリフレッシュトークン（長命、DBで失効管理）の2種類のCookieで行い、有効期限はそれぞれ`JWT_ACCESS_TOKEN_EXPIRATION_MS`（デフォルト900000＝15分）・`JWT_REFRESH_TOKEN_EXPIRATION_MS`（デフォルト1209600000＝14日）で変更できます。CookieのSecure属性は`JWT_COOKIE_SECURE`（デフォルトfalse。HTTPS配信になる環境ではtrueにしてください）で変更できます。
+
+プロフィール画像はAmazon S3互換のストレージに保存します。既定値は上記のDocker Composeで起動したMinIOを指しているため、**ローカル開発では環境変数を何も設定しなくてもそのまま画像のアップロード・削除まで動作します**。
+
+本番相当の環境で実際のAmazon S3に接続する場合は、あらかじめS3バケットを作成したうえで以下の環境変数を上書きしてください。
+
+- `AWS_S3_BUCKET`：保存先バケット名（ローカル開発時のデフォルト`raisetechsns-avatars`）
+- `AWS_REGION`：バケットのリージョン（デフォルト`ap-northeast-1`）
+- `AWS_S3_ENDPOINT`：**空文字を指定する**（デフォルトはMinIOを指す`http://localhost:9000`。空にすると実際のAmazon S3の標準エンドポイントを使う）
+- `AWS_S3_PATH_STYLE_ACCESS`：`true`のままで問題ありません（AWS S3もpath-style形式のURLでの読み書きに対応しています）
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`：バケットへの読み書き権限を持つIAMユーザーの認証情報（デフォルトはMinIOのルートユーザー`minioadmin`/`minioadmin`）
 
 ### フロントエンド（React + Vite）
 

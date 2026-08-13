@@ -57,6 +57,7 @@ class CommentServiceTest {
         row.setContent(content);
         row.setUsername("taro");
         row.setDisplayName("太郎");
+        row.setAvatarUrl("https://example.com/avatars/taro.jpg");
         return row;
     }
 
@@ -107,6 +108,7 @@ class CommentServiceTest {
         assertThat(result.id()).isEqualTo(10L);
         assertThat(result.content()).isEqualTo("こんにちは");
         assertThat(result.isOwnedByMe()).isTrue();
+        assertThat(result.avatarUrl()).isEqualTo("https://example.com/avatars/taro.jpg");
     }
 
     @Test

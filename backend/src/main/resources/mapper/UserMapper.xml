@@ -12,6 +12,15 @@
         WHERE id = #{id}
     </select>
 
+    <!-- FOR UPDATEで行ロックを取得する。呼び出し元のトランザクションが終わるまでロックが保持され、
+         同一利用者に対する同時実行のfindByIdForUpdateはそのトランザクションが終わるまで待たされる -->
+    <select id="findByIdForUpdate" resultType="com.raisetechsns.backend.entity.User">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
     <select id="findByEmail" resultType="com.raisetechsns.backend.entity.User">
         SELECT <include refid="columns"/>
         FROM users
@@ -60,6 +69,10 @@
 
     <update id="updateBio">
         UPDATE users SET bio = #{bio}, updated_at = now() WHERE id = #{id}
+    </update>
+
+    <update id="updateAvatarUrl">
+        UPDATE users SET avatar_url = #{avatarUrl}, updated_at = now() WHERE id = #{id}
     </update>
 
 </mapper>

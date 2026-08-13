@@ -1,4 +1,5 @@
 import type { Comment } from '../types/comment';
+import { AvatarIcon } from './AvatarIcon';
 
 interface CommentItemProps {
   comment: Comment;
@@ -13,10 +14,14 @@ export function CommentItem({ comment, onDelete, deleting, onOpenProfile }: Comm
       <div className="comment-item-header">
         {onOpenProfile ? (
           <button type="button" className="link-button comment-author" onClick={() => onOpenProfile(comment.userId)}>
+            <AvatarIcon avatarUrl={comment.avatarUrl} />
             {comment.displayName}
           </button>
         ) : (
-          <span className="comment-author">{comment.displayName}</span>
+          <span className="comment-author">
+            <AvatarIcon avatarUrl={comment.avatarUrl} />
+            {comment.displayName}
+          </span>
         )}
         {comment.isOwnedByMe && (
           <button

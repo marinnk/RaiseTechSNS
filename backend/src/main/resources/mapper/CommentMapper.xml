@@ -4,7 +4,7 @@
 
     <sql id="columnsWithAuthor">
         c.id AS comment_id, c.post_id, c.user_id, c.content,
-        u.username, u.display_name
+        u.username, u.display_name, u.avatar_url
     </sql>
 
     <!-- idx_comments_post_idにより、投稿1件あたりのコメント一覧取得は効率的 -->

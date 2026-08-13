@@ -7,7 +7,7 @@ import { TimelineScreen } from './components/TimelineScreen';
 type Screen = 'login' | 'signup';
 
 function App() {
-  const { user, sessionStatus, submitting, error, login, register, logout, clearError } = useAuth();
+  const { user, sessionStatus, submitting, error, login, register, logout, clearError, updateAvatarUrl } = useAuth();
   const [screen, setScreen] = useState<Screen>('login');
 
   // ログイン⇔新規登録の切り替え時は、直前の画面で出ていたエラーを持ち越さない
@@ -30,7 +30,14 @@ function App() {
   }
 
   if (user) {
-    return <TimelineScreen currentUser={user} onLogout={logout} logoutSubmitting={submitting} />;
+    return (
+      <TimelineScreen
+        currentUser={user}
+        onLogout={logout}
+        logoutSubmitting={submitting}
+        onCurrentUserAvatarChange={updateAvatarUrl}
+      />
+    );
   }
 
   if (screen === 'signup') {

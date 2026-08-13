@@ -22,6 +22,8 @@ interface PostDetailViewProps {
   // 戻る先の表示文言。タイムライン一覧から開いた場合は「タイムライン」、プロフィール画面の
   // 投稿一覧から開いた場合は「プロフィール」に戻る、と分かるようにする
   backLabel?: string;
+  // コメント投稿フォームの横に表示する、ログイン中利用者自身のアイコン画像
+  currentUserAvatarUrl: string | null;
 }
 
 // S04 投稿詳細画面。投稿本文・いいねボタンに加えて、コメント一覧・コメント投稿フォームを表示する。
@@ -40,6 +42,7 @@ export function PostDetailView({
   onDeleteComment,
   onOpenProfile,
   backLabel = 'タイムライン',
+  currentUserAvatarUrl,
 }: PostDetailViewProps) {
   return (
     <div className="post-detail-view">
@@ -70,7 +73,7 @@ export function PostDetailView({
             onOpenProfile={onOpenProfile}
           />
         )}
-        <CommentForm onSubmit={onAddComment} submitting={commentSubmitting} />
+        <CommentForm avatarUrl={currentUserAvatarUrl} onSubmit={onAddComment} submitting={commentSubmitting} />
       </section>
     </div>
   );

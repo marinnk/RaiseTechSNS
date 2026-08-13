@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Post } from '../types/post';
 import { formatDate } from '../utils/formatDate';
+import { AvatarIcon } from './AvatarIcon';
 import { Modal } from './Modal';
 import { PostEditForm } from './PostEditForm';
 
@@ -53,10 +54,14 @@ export function PostItem({
       <div className="post-item-header">
         {onOpenProfile ? (
           <button type="button" className="link-button post-author" onClick={() => onOpenProfile(post.userId)}>
+            <AvatarIcon avatarUrl={post.avatarUrl} />
             {post.displayName}
           </button>
         ) : (
-          <span className="post-author">{post.displayName}</span>
+          <span className="post-author">
+            <AvatarIcon avatarUrl={post.avatarUrl} />
+            {post.displayName}
+          </span>
         )}
         <time className="post-date" dateTime={post.createdAt}>
           {formatDate(post.createdAt)}

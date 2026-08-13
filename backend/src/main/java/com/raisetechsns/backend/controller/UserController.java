@@ -2,13 +2,18 @@ package com.raisetechsns.backend.controller;
 
 import jakarta.validation.Valid;
 
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.raisetechsns.backend.dto.ProfileResponse;
 import com.raisetechsns.backend.dto.UpdateProfileRequest;
@@ -33,5 +38,15 @@ public class UserController {
     @PutMapping("/me")
     public ProfileResponse updateMe(@Valid @RequestBody UpdateProfileRequest request, @AuthenticationPrincipal User user) {
         return profileService.updateBio(request, user);
+    }
+
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProfileResponse uploadAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal User user) {
+        return profileService.uploadAvatar(file, user);
+    }
+
+    @DeleteMapping("/me/avatar")
+    public ProfileResponse deleteAvatar(@AuthenticationPrincipal User user) {
+        return profileService.deleteAvatar(user);
     }
 }

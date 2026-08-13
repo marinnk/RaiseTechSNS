@@ -170,6 +170,25 @@ body {
   gap: 16px;
 }
 
+.timeline-header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 投稿・コメント・タイムライン等、名前と並べて出す小さな丸アイコン全般で共通して使う */
+.avatar-icon-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatar-icon-placeholder {
+  background: var(--color-border);
+}
+
 .timeline-tabs {
   display: flex;
   border-bottom: 1px solid var(--color-border);
@@ -199,6 +218,35 @@ body {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
+}
+
+.post-form-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.post-form-body .post-content-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-form-body .avatar-icon-sm {
+  margin-top: 4px;
+}
+
+.avatar-icon-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  line-height: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.avatar-icon-button .avatar-icon-sm {
+  margin-top: 0;
 }
 
 .post-content-input textarea {
@@ -259,6 +307,9 @@ body {
 }
 
 .post-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: bold;
 }
 
@@ -367,6 +418,9 @@ body {
 }
 
 .comment-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: bold;
 }
 
@@ -460,6 +514,29 @@ body {
   gap: 12px;
 }
 
+.profile-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.profile-avatar-lg {
+  width: 96px;
+  height: 96px;
+}
+
+.profile-avatar-placeholder {
+  background: var(--color-border);
+}
+
 .profile-display-name {
   margin: 0;
   font-size: 20px;
@@ -504,7 +581,7 @@ body {
 
 .follow-list-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   width: 100%;
   border: none;
@@ -560,4 +637,36 @@ body {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
   border-color: var(--color-primary);
+}
+
+.avatar-edit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.avatar-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ネイティブのfile inputは見た目を統一するために非表示にし、隣のボタンから click() で開く */
+.avatar-edit-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.avatar-edit .form-error {
+  width: 100%;
+  margin: 0;
 }

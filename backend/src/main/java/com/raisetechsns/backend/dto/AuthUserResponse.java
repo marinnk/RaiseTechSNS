@@ -9,10 +9,12 @@ public record AuthUserResponse(
         Long id,
         String username,
         String displayName,
-        String email
+        String email,
+        String avatarUrl
 ) {
 
     public static AuthUserResponse from(User user) {
-        return new AuthUserResponse(user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail());
+        return new AuthUserResponse(
+                user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail(), user.getAvatarUrl());
     }
 }

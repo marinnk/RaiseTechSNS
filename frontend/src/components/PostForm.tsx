@@ -1,13 +1,17 @@
 import { useState } from 'react';
+import { AvatarIcon } from './AvatarIcon';
 import { PostContentInput } from './PostContentInput';
 import { isValidPostContent } from '../utils/postContent';
 
 interface PostFormProps {
+  avatarUrl: string | null;
   onSubmit: (content: string) => Promise<boolean>;
   submitting: boolean;
+  // 投稿フォームの自分のアイコンをクリックしたときに自分のプロフィール画面へ遷移させる
+  onOpenProfile: () => void;
 }
 
-export function PostForm({ onSubmit, submitting }: PostFormProps) {
+export function PostForm({ avatarUrl, onSubmit, submitting, onOpenProfile }: PostFormProps) {
   const [content, setContent] = useState('');
   const canSubmit = isValidPostContent(content) && !submitting;
 
@@ -20,7 +24,12 @@ export function PostForm({ onSubmit, submitting }: PostFormProps) {
 
   return (
     <form className="post-form" onSubmit={handleSubmit}>
-      <PostContentInput id="post-form-content" value={content} onChange={setContent} disabled={submitting} />
+      <div className="post-form-body">
+        <button type="button" className="avatar-icon-button" onClick={onOpenProfile} aria-label="自分のプロフィールを表示">
+          <AvatarIcon avatarUrl={avatarUrl} />
+        </button>
+        <PostContentInput id="post-form-content" value={content} onChange={setContent} disabled={submitting} />
+      </div>
       <div className="post-form-footer">
         <button type="submit" className="btn" disabled={!canSubmit}>
           投稿
