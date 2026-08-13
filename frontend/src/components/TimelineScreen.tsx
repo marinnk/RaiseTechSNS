@@ -139,7 +139,9 @@ export function TimelineScreen({
     loadingMore: profilePostsLoadingMore,
     hasMore: profilePostsHasMore,
     error: profilePostsError,
+    submitting: profilePostSubmitting,
     loadMore: loadMoreProfilePosts,
+    addPost: addProfilePost,
     clearError: clearProfilePostsError,
   } = useUserPosts(profileUserId, postStore.upsertPosts);
   const profilePosts = postStore.getPosts(profilePostIds);
@@ -314,6 +316,8 @@ export function TimelineScreen({
             postsHasMore={profilePostsHasMore}
             postsLoadingMore={profilePostsLoadingMore}
             onLoadMorePosts={loadMoreProfilePosts}
+            onSubmitPost={addProfilePost}
+            postSubmitting={profilePostSubmitting}
             onEditPost={postStore.editPost}
             onDeletePost={postStore.removePost}
             onToggleLike={likes.toggleLike}

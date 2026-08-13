@@ -913,6 +913,75 @@ describe('TimelineScreen', () => {
     expect(screen.queryByRole('button', { name: 'フォローする' })).not.toBeInTheDocument();
   });
 
+  it('自分のプロフィール画面から投稿すると、その投稿一覧の先頭に反映される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'POST /api/posts': () => ({ status: 201, body: post({ id: 1, content: 'プロフィールからの投稿' }) }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await screen.findByText('@taro');
+
+    await user.type(screen.getByLabelText('投稿内容'), 'プロフィールからの投稿');
+    await user.click(screen.getByRole('button', { name: '投稿' }));
+
+    expect(await screen.findByText('プロフィールからの投稿')).toBeInTheDocument();
+    expect(screen.queryByText('まだ投稿がありません。')).not.toBeInTheDocument();
+  });
+
+  it('他人のプロフィール画面には投稿フォームが表示されない', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users?q=jiro': () => ({
+          status: 200,
+          body: { users: [{ id: 2, username: 'jiro', displayName: '次郎', avatarUrl: null, followedByMe: false }] },
+        }),
+        'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2, username: 'jiro', displayName: '次郎' }) }),
+        'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.click(screen.getByRole('button', { name: '検索' }));
+    await user.type(screen.getByLabelText('ユーザー名・表示名で検索'), 'jiro');
+    await user.click(within(screen.getByRole('search')).getByRole('button', { name: '検索' }));
+    await user.click(await screen.findByRole('button', { name: /次郎/ }));
+
+    expect(await screen.findByText('@jiro')).toBeInTheDocument();
+    expect(screen.queryByLabelText('投稿内容')).not.toBeInTheDocument();
+  });
+
   it('ヘッダーの「検索」からユーザーを検索し、結果からプロフィールに遷移できる', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
