@@ -90,6 +90,9 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
     applyProfileUpdate,
     saveBio,
     savingBio,
+    uploadAvatar,
+    removeAvatar,
+    savingAvatar,
     clearError: clearProfileError,
   } = useProfile(profileUserId);
 
@@ -287,9 +290,13 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
         profile ? (
           <ProfileEditForm
             initialBio={profile.bio ?? ''}
+            avatarUrl={profile.avatarUrl}
             submitting={savingBio}
+            avatarSubmitting={savingAvatar}
             onCancel={backFromProfileEdit}
             onSave={handleSaveProfile}
+            onUploadAvatar={uploadAvatar}
+            onRemoveAvatar={removeAvatar}
           />
         ) : (
           <p className="text-sub">読み込み中...</p>

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
@@ -742,6 +742,115 @@ describe('TimelineScreen', () => {
 
     expect(await screen.findByText('よろしくお願いします')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
+  });
+
+  it('プロフィール編集画面で画像を選択するとアップロードされ、プロフィール画面のアイコンが更新される', async () => {
+    const user = userEvent.setup();
+    URL.createObjectURL = vi.fn(() => 'blob:mock-preview');
+    URL.revokeObjectURL = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true, avatarUrl: null }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'POST /api/users/me/avatar': () => ({
+          status: 200,
+          body: profile({
+            id: 1,
+            username: 'taro',
+            displayName: '太郎',
+            isOwnedByMe: true,
+            avatarUrl: 'https://example.com/avatars/x.jpg',
+          }),
+        }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('まだ投稿がありません。');
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await user.click(await screen.findByRole('button', { name: 'プロフィールを編集' }));
+
+    const file = new File(['dummy'], 'avatar.jpg', { type: 'image/jpeg' });
+    await user.upload(screen.getByLabelText('アイコン画像を選択'), file);
+    // アップロード完了（avatarUrlがサーバー側の値に更新され「画像を削除」ボタンが現れる）を待ってから戻る
+    await screen.findByRole('button', { name: '画像を削除' });
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+    expect(await screen.findByRole('img', { name: '太郎のアイコン' })).toHaveAttribute(
+      'src',
+      'https://example.com/avatars/x.jpg',
+    );
+  });
+
+  it('プロフィール編集画面で画像を削除するとアイコンがプレースホルダーに戻る', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'GET /api/users/1': () => ({
+          status: 200,
+          body: profile({
+            id: 1,
+            username: 'taro',
+            displayName: '太郎',
+            isOwnedByMe: true,
+            avatarUrl: 'https://example.com/avatars/x.jpg',
+          }),
+        }),
+        'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'DELETE /api/users/me/avatar': () => ({
+          status: 200,
+          body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true, avatarUrl: null }),
+        }),
+      }),
+    );
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('まだ投稿がありません。');
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await user.click(await screen.findByRole('button', { name: 'プロフィールを編集' }));
+    await screen.findByRole('img', { name: 'アイコンのプレビュー' });
+
+    await user.click(screen.getByRole('button', { name: '画像を削除' }));
+    // 削除完了（avatarUrlがnullに更新され「画像を削除」ボタンが消える）を待ってから戻る
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: '画像を削除' })).not.toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+    expect(screen.queryByRole('img', { name: '太郎のアイコン' })).not.toBeInTheDocument();
+  });
+
+  it('不正な形式の画像を選択するとエラーメッセージが表示されアップロードAPIは呼ばれない', async () => {
+    // input[accept]によるブラウザ側フィルタを無効にし、クライアント側の検証（validateImageFile）
+    // が効いていることを確認する
+    const user = userEvent.setup({ applyAccept: false });
+    const fetchMock = mockFetch({
+      'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+      'GET /api/users/1': () => ({
+        status: 200,
+        body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true, avatarUrl: null }),
+      }),
+      'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<TimelineScreen currentUser={currentUser} onLogout={vi.fn()} logoutSubmitting={false} />);
+    await screen.findByText('まだ投稿がありません。');
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await user.click(await screen.findByRole('button', { name: 'プロフィールを編集' }));
+
+    const textFile = new File(['dummy'], 'note.txt', { type: 'text/plain' });
+    await user.upload(screen.getByLabelText('アイコン画像を選択'), textFile);
+
+    expect(await screen.findByText('画像はjpgまたはpng形式のみ選択できます。')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/api/users/me/avatar'), expect.anything());
   });
 
   it('「フォロー中」タブに切り替えるとscope=followingで再取得される', async () => {

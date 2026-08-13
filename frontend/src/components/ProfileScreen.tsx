@@ -60,9 +60,16 @@ export function ProfileScreen({
 
       <div className="profile-header">
         <div className="profile-header-main">
-          <div>
-            <h1 className="profile-display-name">{profile.displayName}</h1>
-            <p className="profile-username">@{profile.username}</p>
+          <div className="profile-header-identity">
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={`${profile.displayName}のアイコン`} className="profile-avatar" />
+            ) : (
+              <div className="profile-avatar profile-avatar-placeholder" aria-hidden="true" />
+            )}
+            <div>
+              <h1 className="profile-display-name">{profile.displayName}</h1>
+              <p className="profile-username">@{profile.username}</p>
+            </div>
           </div>
           {profile.isOwnedByMe ? (
             <button type="button" className="btn btn-outline" onClick={onOpenEdit}>

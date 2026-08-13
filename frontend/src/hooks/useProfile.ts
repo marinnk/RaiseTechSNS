@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchProfile, updateMyProfile } from '../api/profile';
+import { deleteMyAvatar, fetchProfile, updateMyProfile, uploadMyAvatar } from '../api/profile';
 import { toErrorMessage } from '../utils/apiError';
 import type { Profile } from '../types/profile';
 
@@ -15,6 +15,7 @@ export function useProfile(userId: number | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingBio, setSavingBio] = useState(false);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   useEffect(() => {
     if (userId === null) {
@@ -63,7 +64,53 @@ export function useProfile(userId: number | null) {
     [applyProfileUpdate],
   );
 
+  // 自分のアバター画像を登録・上書きする。
+  const uploadAvatar = useCallback(
+    async (file: File): Promise<boolean> => {
+      setSavingAvatar(true);
+      setError(null);
+      try {
+        const updated = await uploadMyAvatar(file);
+        applyProfileUpdate(updated);
+        return true;
+      } catch (err) {
+        setError(toErrorMessage(err, 'プロフィール画像の更新に失敗しました。'));
+        return false;
+      } finally {
+        setSavingAvatar(false);
+      }
+    },
+    [applyProfileUpdate],
+  );
+
+  // 自分のアバター画像を削除する。
+  const removeAvatar = useCallback(async (): Promise<boolean> => {
+    setSavingAvatar(true);
+    setError(null);
+    try {
+      const updated = await deleteMyAvatar();
+      applyProfileUpdate(updated);
+      return true;
+    } catch (err) {
+      setError(toErrorMessage(err, 'プロフィール画像の削除に失敗しました。'));
+      return false;
+    } finally {
+      setSavingAvatar(false);
+    }
+  }, [applyProfileUpdate]);
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { profile, loading, error, applyProfileUpdate, saveBio, savingBio, clearError };
+  return {
+    profile,
+    loading,
+    error,
+    applyProfileUpdate,
+    saveBio,
+    savingBio,
+    uploadAvatar,
+    removeAvatar,
+    savingAvatar,
+    clearError,
+  };
 }

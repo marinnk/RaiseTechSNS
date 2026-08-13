@@ -42,4 +42,11 @@ public interface UserMapper {
      * @return 更新できた件数（0なら対象が存在しない）
      */
     int updateBio(@Param("id") Long id, @Param("bio") String bio);
+
+    /**
+     * アバター画像のURLを更新する。削除時は{@code avatarUrl}に{@code null}を渡す。
+     *
+     * @return 更新できた件数（0なら対象が存在しない）
+     */
+    int updateAvatarUrl(@Param("id") Long id, @Param("avatarUrl") String avatarUrl);
 }

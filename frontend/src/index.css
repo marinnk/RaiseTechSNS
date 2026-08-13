@@ -460,6 +460,29 @@ body {
   gap: 12px;
 }
 
+.profile-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.profile-avatar-lg {
+  width: 96px;
+  height: 96px;
+}
+
+.profile-avatar-placeholder {
+  background: var(--color-border);
+}
+
 .profile-display-name {
   margin: 0;
   font-size: 20px;
@@ -560,4 +583,36 @@ body {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
   border-color: var(--color-primary);
+}
+
+.avatar-edit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.avatar-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ネイティブのfile inputは見た目を統一するために非表示にし、隣のボタンから click() で開く */
+.avatar-edit-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.avatar-edit .form-error {
+  width: 100%;
+  margin: 0;
 }

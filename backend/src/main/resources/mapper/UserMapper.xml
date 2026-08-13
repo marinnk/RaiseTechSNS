@@ -62,4 +62,8 @@
         UPDATE users SET bio = #{bio}, updated_at = now() WHERE id = #{id}
     </update>
 
+    <update id="updateAvatarUrl">
+        UPDATE users SET avatar_url = #{avatarUrl}, updated_at = now() WHERE id = #{id}
+    </update>
+
 </mapper>

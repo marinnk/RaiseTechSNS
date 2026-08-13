@@ -94,6 +94,16 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
 }
 
 /**
+ * multipart/form-data（画像アップロード等）用のPOST。`Content-Type`ヘッダーは付けない
+ * （付けるとboundaryが無いリクエストになってしまうため、ブラウザにFormDataから自動設定させる）。
+ */
+export async function apiPostMultipart<T>(path: string, formData: FormData): Promise<T> {
+  const res = await request(path, { method: 'POST', body: formData });
+  await throwIfError(res);
+  return res.json() as Promise<T>;
+}
+
+/**
  * レスポンスボディが無い（204 No Content等）POSTリクエスト用。
  * apiPostと違い、成功時に`.json()`を呼ばない。
  */
