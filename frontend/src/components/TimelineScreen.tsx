@@ -11,8 +11,8 @@ import { useUserSearch } from '../hooks/useUserSearch';
 import type { AuthUser } from '../types/auth';
 import { AvatarIcon } from './AvatarIcon';
 import { NewPostsBanner } from './NewPostsBanner';
+import { PostCreateButton } from './PostCreateButton';
 import { PostDetailView } from './PostDetailView';
-import { PostForm } from './PostForm';
 import { PostList } from './PostList';
 import { ProfileEditForm } from './ProfileEditForm';
 import { ProfileScreen } from './ProfileScreen';
@@ -254,7 +254,7 @@ export function TimelineScreen({
 
       {view.mode === 'list' ? (
         <>
-          <PostForm
+          <PostCreateButton
             avatarUrl={currentUser.avatarUrl}
             onSubmit={addPost}
             submitting={submitting}

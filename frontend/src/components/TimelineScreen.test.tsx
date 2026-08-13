@@ -133,11 +133,14 @@ describe('TimelineScreen', () => {
     );
     await screen.findByText('まだ投稿がありません。');
 
-    await user.type(screen.getByLabelText('投稿内容'), 'はじめての投稿');
-    await user.click(screen.getByRole('button', { name: '投稿' }));
+    await user.click(screen.getByRole('button', { name: '投稿を作成する' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を作成' });
+    await user.type(within(dialog).getByLabelText('投稿内容'), 'はじめての投稿');
+    await user.click(within(dialog).getByRole('button', { name: '投稿' }));
 
     expect(await screen.findByText('はじめての投稿')).toBeInTheDocument();
     expect(screen.queryByText('まだ投稿がありません。')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('画像を添付して投稿すると一覧に画像が表示される', async () => {
@@ -167,12 +170,15 @@ describe('TimelineScreen', () => {
     );
     await screen.findByText('まだ投稿がありません。');
 
-    await user.type(screen.getByLabelText('投稿内容'), '画像付き投稿');
+    await user.click(screen.getByRole('button', { name: '投稿を作成する' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を作成' });
+    await user.type(within(dialog).getByLabelText('投稿内容'), '画像付き投稿');
     const file = new File(['dummy'], 'a.jpg', { type: 'image/jpeg' });
-    await user.upload(screen.getByLabelText(/画像を選択/), file);
-    await user.click(screen.getByRole('button', { name: '投稿' }));
+    await user.upload(within(dialog).getByLabelText(/画像を選択/), file);
+    await user.click(within(dialog).getByRole('button', { name: '投稿' }));
 
     expect(await screen.findByAltText('投稿画像')).toHaveAttribute('src', 'https://example.com/posts/a.jpg');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('投稿内容のテキストエリアには280文字のmaxLengthが設定されており、未入力時は投稿ボタンが無効になる', async () => {
@@ -192,8 +198,10 @@ describe('TimelineScreen', () => {
         onCurrentUserAvatarChange={vi.fn()}
       />,
     );
-    const textarea = await screen.findByLabelText('投稿内容');
-    const submitButton = screen.getByRole('button', { name: '投稿' });
+    await user.click(await screen.findByRole('button', { name: '投稿を作成する' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を作成' });
+    const textarea = within(dialog).getByLabelText('投稿内容');
+    const submitButton = within(dialog).getByRole('button', { name: '投稿' });
 
     expect(textarea).toHaveAttribute('maxlength', '280');
     expect(submitButton).toBeDisabled();
@@ -941,14 +949,17 @@ describe('TimelineScreen', () => {
     await user.click(screen.getByRole('button', { name: '太郎' }));
     await screen.findByText('@taro');
 
-    await user.type(screen.getByLabelText('投稿内容'), 'プロフィールからの投稿');
-    await user.click(screen.getByRole('button', { name: '投稿' }));
+    await user.click(screen.getByRole('button', { name: '投稿を作成する' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を作成' });
+    await user.type(within(dialog).getByLabelText('投稿内容'), 'プロフィールからの投稿');
+    await user.click(within(dialog).getByRole('button', { name: '投稿' }));
 
     expect(await screen.findByText('プロフィールからの投稿')).toBeInTheDocument();
     expect(screen.queryByText('まだ投稿がありません。')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('他人のプロフィール画面には投稿フォームが表示されない', async () => {
+  it('他人のプロフィール画面には投稿を作成するボタンが表示されない', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       'fetch',
@@ -979,7 +990,7 @@ describe('TimelineScreen', () => {
     await user.click(await screen.findByRole('button', { name: /次郎/ }));
 
     expect(await screen.findByText('@jiro')).toBeInTheDocument();
-    expect(screen.queryByLabelText('投稿内容')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '投稿を作成する' })).not.toBeInTheDocument();
   });
 
   it('自分のプロフィールで投稿を送信中に別の利用者のプロフィールへ移動すると、移動先の一覧には反映されない', async () => {
@@ -1034,8 +1045,10 @@ describe('TimelineScreen', () => {
     // 自分のプロフィールで投稿フォームに入力し、送信する（POST /api/postsはまだ完了しない）
     await user.click(screen.getByRole('button', { name: '太郎' }));
     await screen.findByText('@taro');
-    await user.type(screen.getByLabelText('投稿内容'), '送信中に移動');
-    await user.click(screen.getByRole('button', { name: '投稿' }));
+    await user.click(screen.getByRole('button', { name: '投稿を作成する' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を作成' });
+    await user.type(within(dialog).getByLabelText('投稿内容'), '送信中に移動');
+    await user.click(within(dialog).getByRole('button', { name: '投稿' }));
 
     // 送信が完了する前に、検索から別の利用者のプロフィールへ移動する
     await user.click(screen.getByRole('button', { name: '検索' }));

@@ -3,7 +3,7 @@ import type { Post } from '../types/post';
 import type { Profile } from '../types/profile';
 import type { UserSummary } from '../types/follow';
 import { FollowListPanel } from './FollowListPanel';
-import { PostForm } from './PostForm';
+import { PostCreateButton } from './PostCreateButton';
 import { PostList } from './PostList';
 
 interface ProfileScreenProps {
@@ -117,7 +117,7 @@ export function ProfileScreen({
       </div>
 
       {profile.isOwnedByMe && (
-        <PostForm
+        <PostCreateButton
           avatarUrl={profile.avatarUrl}
           onSubmit={onSubmitPost}
           submitting={postSubmitting}

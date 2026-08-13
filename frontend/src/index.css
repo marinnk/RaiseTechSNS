@@ -220,6 +220,10 @@ body {
   margin-bottom: 16px;
 }
 
+.post-create-button {
+  margin-bottom: 16px;
+}
+
 .post-form-body {
   display: flex;
   align-items: flex-start;
