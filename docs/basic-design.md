@@ -46,6 +46,9 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 **1.13 / 2026-08-13**  
 プロフィール画像（アイコン）の登録・更新・削除APIを追記（POST/DELETE /api/users/me/avatar）。AWS SDK for Java v2によるバックエンド経由のプロキシアップロード方式を採用し、画像の保存・削除を`StorageService`インターフェースで抽象化した。ローカル開発では実際のAWSアカウントを使わずに動作確認できるよう、S3互換のMinIOをDocker Composeで起動して接続先とする方式に変更した。投稿への画像添付機能（post_images）は別途あらためて計画するため、今回のスコープには含めない
 
+**1.14 / 2026-08-13**  
+画面設計（screen-design.md）のワイヤーフレーム通り、アイコン画像をヘッダー・投稿フォーム・タイムライン各投稿・コメント欄にも表示するようにした。これに伴い、ログイン中利用者情報（`GET /api/auth/me`等が返すレスポンス）・投稿API・コメントAPIのレスポンスに`avatarUrl`を追加した
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする

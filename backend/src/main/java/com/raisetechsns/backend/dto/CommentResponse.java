@@ -11,6 +11,7 @@ public record CommentResponse(
         Long userId,
         String username,
         String displayName,
+        String avatarUrl,
         String content,
         boolean isOwnedByMe
 ) {
@@ -22,6 +23,7 @@ public record CommentResponse(
                 row.getUserId(),
                 row.getUsername(),
                 row.getDisplayName(),
+                row.getAvatarUrl(),
                 row.getContent(),
                 row.getUserId().equals(currentUserId));
     }

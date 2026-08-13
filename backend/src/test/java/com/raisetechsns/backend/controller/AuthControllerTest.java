@@ -1,6 +1,7 @@
 package com.raisetechsns.backend.controller;
 
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -50,6 +51,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("taro"))
                 .andExpect(jsonPath("$.email").value("taro@example.com"))
                 .andExpect(jsonPath("$.displayName").value("taro"))
+                .andExpect(jsonPath("$.avatarUrl").value(nullValue()))
                 .andExpect(cookie().exists("access_token"))
                 .andExpect(cookie().exists("refresh_token"));
     }

@@ -4,6 +4,7 @@ export interface Comment {
   userId: number;
   username: string;
   displayName: string;
+  avatarUrl: string | null;
   content: string;
   isOwnedByMe: boolean;
 }

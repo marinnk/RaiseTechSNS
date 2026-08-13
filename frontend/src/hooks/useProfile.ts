@@ -9,8 +9,13 @@ import type { Profile } from '../types/profile';
  *
  * フォロー操作（useFollow）・自己紹介の更新の結果を画面へ反映できるよう、profileを
  * 直接書き換えるapplyProfileUpdateを公開する（usePostStore.applyLikeUpdateと同じ設計）。
+ *
+ * @param onOwnAvatarChange アバター画像の登録・削除（`/api/users/me/avatar`）が成功するたびに
+ *   呼ばれる。このエンドポイントは常にログイン中利用者自身が対象のため、呼ばれた時点で
+ *   「自分のアバター画像」が変わったとみなせる。ヘッダー等で使うuseAuthのuserにも
+ *   反映したい場合に指定する
  */
-export function useProfile(userId: number | null) {
+export function useProfile(userId: number | null, onOwnAvatarChange?: (avatarUrl: string | null) => void) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +77,7 @@ export function useProfile(userId: number | null) {
       try {
         const updated = await uploadMyAvatar(file);
         applyProfileUpdate(updated);
+        onOwnAvatarChange?.(updated.avatarUrl);
         return true;
       } catch (err) {
         setError(toErrorMessage(err, 'プロフィール画像の更新に失敗しました。'));
@@ -80,7 +86,7 @@ export function useProfile(userId: number | null) {
         setSavingAvatar(false);
       }
     },
-    [applyProfileUpdate],
+    [applyProfileUpdate, onOwnAvatarChange],
   );
 
   // 自分のアバター画像を削除する。
@@ -90,6 +96,7 @@ export function useProfile(userId: number | null) {
     try {
       const updated = await deleteMyAvatar();
       applyProfileUpdate(updated);
+      onOwnAvatarChange?.(updated.avatarUrl);
       return true;
     } catch (err) {
       setError(toErrorMessage(err, 'プロフィール画像の削除に失敗しました。'));
@@ -97,7 +104,7 @@ export function useProfile(userId: number | null) {
     } finally {
       setSavingAvatar(false);
     }
-  }, [applyProfileUpdate]);
+  }, [applyProfileUpdate, onOwnAvatarChange]);
 
   const clearError = useCallback(() => setError(null), []);
 

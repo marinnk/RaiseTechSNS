@@ -55,6 +55,7 @@ class PostServiceTest {
         row.setUpdatedAt(OffsetDateTime.now());
         row.setUsername("taro");
         row.setDisplayName("太郎");
+        row.setAvatarUrl("https://example.com/avatars/taro.jpg");
         return row;
     }
 
@@ -81,6 +82,7 @@ class PostServiceTest {
         assertThat(result.id()).isEqualTo(10L);
         assertThat(result.content()).isEqualTo("こんにちは");
         assertThat(result.isOwnedByMe()).isTrue();
+        assertThat(result.avatarUrl()).isEqualTo("https://example.com/avatars/taro.jpg");
     }
 
     @Test

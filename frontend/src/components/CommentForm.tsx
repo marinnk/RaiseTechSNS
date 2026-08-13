@@ -3,11 +3,12 @@ import { PostContentInput } from './PostContentInput';
 import { isValidPostContent } from '../utils/postContent';
 
 interface CommentFormProps {
+  avatarUrl: string | null;
   onSubmit: (content: string) => Promise<boolean>;
   submitting: boolean;
 }
 
-export function CommentForm({ onSubmit, submitting }: CommentFormProps) {
+export function CommentForm({ avatarUrl, onSubmit, submitting }: CommentFormProps) {
   const [content, setContent] = useState('');
   const canSubmit = isValidPostContent(content) && !submitting;
 
@@ -20,14 +21,21 @@ export function CommentForm({ onSubmit, submitting }: CommentFormProps) {
 
   return (
     <form className="comment-form" onSubmit={handleSubmit}>
-      <PostContentInput
-        id="comment-form-content"
-        value={content}
-        onChange={setContent}
-        disabled={submitting}
-        ariaLabel="コメント内容"
-        placeholder="コメントを追加..."
-      />
+      <div className="post-form-body">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" className="avatar-icon-sm" />
+        ) : (
+          <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+        )}
+        <PostContentInput
+          id="comment-form-content"
+          value={content}
+          onChange={setContent}
+          disabled={submitting}
+          ariaLabel="コメント内容"
+          placeholder="コメントを追加..."
+        />
+      </div>
       <div className="post-form-footer">
         <button type="submit" className="btn" disabled={!canSubmit}>
           コメントする

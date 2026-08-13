@@ -3,11 +3,12 @@ import { PostContentInput } from './PostContentInput';
 import { isValidPostContent } from '../utils/postContent';
 
 interface PostFormProps {
+  avatarUrl: string | null;
   onSubmit: (content: string) => Promise<boolean>;
   submitting: boolean;
 }
 
-export function PostForm({ onSubmit, submitting }: PostFormProps) {
+export function PostForm({ avatarUrl, onSubmit, submitting }: PostFormProps) {
   const [content, setContent] = useState('');
   const canSubmit = isValidPostContent(content) && !submitting;
 
@@ -20,7 +21,14 @@ export function PostForm({ onSubmit, submitting }: PostFormProps) {
 
   return (
     <form className="post-form" onSubmit={handleSubmit}>
-      <PostContentInput id="post-form-content" value={content} onChange={setContent} disabled={submitting} />
+      <div className="post-form-body">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" className="avatar-icon-sm" />
+        ) : (
+          <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+        )}
+        <PostContentInput id="post-form-content" value={content} onChange={setContent} disabled={submitting} />
+      </div>
       <div className="post-form-footer">
         <button type="submit" className="btn" disabled={!canSubmit}>
           投稿

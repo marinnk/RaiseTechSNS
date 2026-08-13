@@ -22,6 +22,7 @@ public class PostWithAuthor {
     private OffsetDateTime updatedAt;
     private String username;
     private String displayName;
+    private String avatarUrl;
     private long likeCount;
     private long commentCount;
     private boolean likedByMe;
@@ -80,6 +81,14 @@ public class PostWithAuthor {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public long getLikeCount() {

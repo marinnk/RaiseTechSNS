@@ -170,6 +170,25 @@ body {
   gap: 16px;
 }
 
+.timeline-header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 投稿・コメント・タイムライン等、名前と並べて出す小さな丸アイコン全般で共通して使う */
+.avatar-icon-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatar-icon-placeholder {
+  background: var(--color-border);
+}
+
 .timeline-tabs {
   display: flex;
   border-bottom: 1px solid var(--color-border);
@@ -199,6 +218,21 @@ body {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
+}
+
+.post-form-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.post-form-body .post-content-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-form-body .avatar-icon-sm {
+  margin-top: 4px;
 }
 
 .post-content-input textarea {

@@ -3,6 +3,7 @@ export interface Post {
   userId: number;
   username: string;
   displayName: string;
+  avatarUrl: string | null;
   content: string;
   createdAt: string;
   updatedAt: string;

@@ -19,6 +19,9 @@ interface TimelineScreenProps {
   currentUser: AuthUser;
   onLogout: () => void;
   logoutSubmitting: boolean;
+  // アバター画像の登録・削除が成功したとき、ヘッダー等で使うcurrentUser.avatarUrlにも
+  // 反映するための更新口（呼び出し元のuseAuthが持つ）
+  onCurrentUserAvatarChange: (avatarUrl: string | null) => void;
 }
 
 // 詳細ビューを閉じたときにどこへ戻るか。タイムライン一覧から開いた場合と、プロフィール画面の
@@ -37,8 +40,7 @@ type View =
 type TimelineScope = 'all' | 'following';
 
 // ログイン後のメイン画面（S03 タイムライン画面 / S04 投稿詳細画面 / S05 プロフィール画面 /
-// S06 プロフィール編集画面）。プロフィール編集は今バージョンでは自己紹介のみ対象
-// （アイコン画像のアップロードは別Issueで対応）。
+// S06 プロフィール編集画面）。プロフィール編集では自己紹介とアバター画像の両方を編集できる。
 //
 // 投稿の実データ（本文・いいね数・コメント数等）はusePostStoreが唯一の情報源として持つ。
 // タイムライン一覧（usePosts）とプロフィールの投稿一覧（useUserPosts）は、同じ投稿
@@ -46,7 +48,12 @@ type TimelineScope = 'all' | 'following';
 // 管理し、実データ・編集/削除/いいね/コメント数の更新はすべてpostStore側の関数に一本化する。
 // これにより、投稿詳細ビューをタイムライン・プロフィールのどちらから開いても、同じ投稿を
 // 表示している他の画面に操作結果が自動的に反映される。
-export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: TimelineScreenProps) {
+export function TimelineScreen({
+  currentUser,
+  onLogout,
+  logoutSubmitting,
+  onCurrentUserAvatarChange,
+}: TimelineScreenProps) {
   const [view, setView] = useState<View>({ mode: 'list' });
   const [scope, setScope] = useState<TimelineScope>('all');
 
@@ -94,7 +101,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
     removeAvatar,
     savingAvatar,
     clearError: clearProfileError,
-  } = useProfile(profileUserId);
+  } = useProfile(profileUserId, onCurrentUserAvatarChange);
 
   const {
     toggleFollow,
@@ -199,7 +206,16 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
       <header className="timeline-header">
         <h1 className="timeline-logo">RaiseTechSNS</h1>
         <div className="timeline-header-actions">
-          <button type="button" className="link-button" onClick={() => openProfile(currentUser.id)}>
+          <button
+            type="button"
+            className="link-button timeline-header-user"
+            onClick={() => openProfile(currentUser.id)}
+          >
+            {currentUser.avatarUrl ? (
+              <img src={currentUser.avatarUrl} alt="" className="avatar-icon-sm" />
+            ) : (
+              <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+            )}
             {currentUser.displayName}
           </button>
           <button type="button" className="link-button" onClick={onLogout} disabled={logoutSubmitting}>
@@ -219,7 +235,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
 
       {view.mode === 'list' ? (
         <>
-          <PostForm onSubmit={addPost} submitting={submitting} />
+          <PostForm avatarUrl={currentUser.avatarUrl} onSubmit={addPost} submitting={submitting} />
 
           <div className="timeline-tabs" role="tablist">
             <button
@@ -317,6 +333,7 @@ export function TimelineScreen({ currentUser, onLogout, logoutSubmitting }: Time
           onAddComment={addComment}
           onDeleteComment={removeComment}
           onOpenProfile={openProfile}
+          currentUserAvatarUrl={currentUser.avatarUrl}
         />
       ) : (
         // 他タブでの削除など、稀にpostStoreから該当投稿が見つからなくなった場合の保険
