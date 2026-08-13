@@ -7,6 +7,7 @@ import { usePostStore } from '../hooks/usePostStore';
 import { usePosts } from '../hooks/usePosts';
 import { useProfile } from '../hooks/useProfile';
 import { useUserPosts } from '../hooks/useUserPosts';
+import { useUserSearch } from '../hooks/useUserSearch';
 import type { AuthUser } from '../types/auth';
 import { AvatarIcon } from './AvatarIcon';
 import { NewPostsBanner } from './NewPostsBanner';
@@ -15,6 +16,7 @@ import { PostForm } from './PostForm';
 import { PostList } from './PostList';
 import { ProfileEditForm } from './ProfileEditForm';
 import { ProfileScreen } from './ProfileScreen';
+import { UserSearchScreen } from './UserSearchScreen';
 
 interface TimelineScreenProps {
   currentUser: AuthUser;
@@ -36,7 +38,8 @@ type View =
   | { mode: 'list' }
   | { mode: 'detail'; postId: number; returnTo: ReturnView }
   | { mode: 'profile'; userId: number }
-  | { mode: 'profileEdit' };
+  | { mode: 'profileEdit' }
+  | { mode: 'search' };
 
 type TimelineScope = 'all' | 'following';
 
@@ -120,6 +123,17 @@ export function TimelineScreen({
   } = useFollowList(profileUserId);
 
   const {
+    keyword: searchKeyword,
+    setKeyword: setSearchKeyword,
+    results: searchResults,
+    hasSearched: searchHasSearched,
+    loading: searchLoading,
+    search: runSearch,
+    error: searchError,
+    clearError: clearSearchError,
+  } = useUserSearch();
+
+  const {
     postIds: profilePostIds,
     loading: profilePostsLoading,
     loadingMore: profilePostsLoadingMore,
@@ -165,6 +179,7 @@ export function TimelineScreen({
   const openProfile = (userId: number) => setView({ mode: 'profile', userId });
   const openProfileEdit = () => setView({ mode: 'profileEdit' });
   const backFromProfileEdit = () => setView({ mode: 'profile', userId: currentUser.id });
+  const openSearch = () => setView({ mode: 'search' });
 
   // 詳細ビュー表示中に自分の投稿を削除したら、開いていた一覧（タイムライン or プロフィール）へ自動的に戻す。
   // 削除はpostStore側でidを取り除くだけなので、削除した投稿を表示していた他の画面（タイムライン・
@@ -189,7 +204,8 @@ export function TimelineScreen({
     profileError ??
     followError ??
     followListError ??
-    profilePostsError;
+    profilePostsError ??
+    searchError;
   const clearDisplayError = () => {
     clearError();
     postStore.clearError();
@@ -198,6 +214,7 @@ export function TimelineScreen({
     clearProfileError();
     clearFollowError();
     clearProfilePostsError();
+    clearSearchError();
   };
 
   return (
@@ -207,6 +224,9 @@ export function TimelineScreen({
       <header className="timeline-header">
         <h1 className="timeline-logo">RaiseTechSNS</h1>
         <div className="timeline-header-actions">
+          <button type="button" className="link-button" onClick={openSearch}>
+            検索
+          </button>
           <button
             type="button"
             className="link-button timeline-header-user"
@@ -304,6 +324,17 @@ export function TimelineScreen({
         ) : (
           <p className="text-sub">{profileLoading ? '読み込み中...' : '利用者が見つかりませんでした。'}</p>
         )
+      ) : view.mode === 'search' ? (
+        <UserSearchScreen
+          keyword={searchKeyword}
+          onKeywordChange={setSearchKeyword}
+          results={searchResults}
+          hasSearched={searchHasSearched}
+          loading={searchLoading}
+          onSearch={runSearch}
+          onBack={backToList}
+          onOpenProfile={openProfile}
+        />
       ) : view.mode === 'profileEdit' ? (
         profile ? (
           <ProfileEditForm

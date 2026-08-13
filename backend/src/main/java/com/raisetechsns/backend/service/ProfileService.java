@@ -1,5 +1,7 @@
 package com.raisetechsns.backend.service;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.ProfileResponse;
 import com.raisetechsns.backend.dto.UpdateProfileRequest;
+import com.raisetechsns.backend.dto.UserSummaryResponse;
 import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.entity.UserWithStats;
 import com.raisetechsns.backend.mapper.UserMapper;
@@ -109,6 +112,23 @@ public class ProfileService {
                 storageService.delete(avatarUrl);
             }
         });
+    }
+
+    /**
+     * ユーザー名・表示名の部分一致でユーザーを検索する（F-8 ユーザー検索機能）。
+     *
+     * @throws ResponseStatusException キーワードが空文字（trim後）の場合（400）。UC09の
+     *     「キーワードが未入力の場合は検索を実行しない」はフロントエンド側で防ぐのが基本だが、
+     *     直接APIを叩かれた場合の安全側の措置として、バックエンドでも空文字は拒否する。
+     */
+    public List<UserSummaryResponse> searchUsers(String keyword, Long currentUserId) {
+        String trimmed = keyword == null ? "" : keyword.trim();
+        if (trimmed.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "keyword must not be blank");
+        }
+        return userMapper.searchByKeyword(trimmed, currentUserId).stream()
+                .map(UserSummaryResponse::from)
+                .toList();
     }
 
     /**

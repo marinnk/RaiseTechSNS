@@ -75,4 +75,21 @@
         UPDATE users SET avatar_url = #{avatarUrl}, updated_at = now() WHERE id = #{id}
     </update>
 
+    <!--
+        ユーザー名・表示名への部分一致検索。docs/basic-design.mdの実装方針の通り、全文検索エンジン等は
+        導入せずILIKE（大文字小文字を区別しない部分一致）で済ませる。学習規模のデータ量を前提に
+        カーソルページネーションは導入せず、安全弁としてLIMITのみ付ける。
+        followed_by_meはFollowMapperのuserSummaryColumnsと同じ形の相関EXISTS。
+    -->
+    <select id="searchByKeyword" resultType="com.raisetechsns.backend.entity.UserFollowSummary">
+        SELECT u.id, u.username, u.display_name, u.avatar_url,
+            EXISTS (
+                SELECT 1 FROM follows f WHERE f.follower_id = #{currentUserId} AND f.followee_id = u.id
+            ) AS followed_by_me
+        FROM users u
+        WHERE u.username ILIKE '%' || #{keyword} || '%' OR u.display_name ILIKE '%' || #{keyword} || '%'
+        ORDER BY u.username
+        LIMIT 50
+    </select>
+
 </mapper>

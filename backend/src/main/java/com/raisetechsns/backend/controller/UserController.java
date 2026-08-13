@@ -1,5 +1,7 @@
 package com.raisetechsns.backend.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.MediaType;
@@ -17,6 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.raisetechsns.backend.dto.ProfileResponse;
 import com.raisetechsns.backend.dto.UpdateProfileRequest;
+import com.raisetechsns.backend.dto.UserSearchResponse;
+import com.raisetechsns.backend.dto.UserSummaryResponse;
 import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.service.ProfileService;
 
@@ -33,6 +37,12 @@ public class UserController {
     @GetMapping("/{userId}")
     public ProfileResponse get(@PathVariable Long userId, @AuthenticationPrincipal User user) {
         return profileService.getProfile(userId, user.getId());
+    }
+
+    @GetMapping
+    public UserSearchResponse search(@RequestParam("q") String q, @AuthenticationPrincipal User user) {
+        List<UserSummaryResponse> users = profileService.searchUsers(q, user.getId());
+        return new UserSearchResponse(users);
     }
 
     @PutMapping("/me")
