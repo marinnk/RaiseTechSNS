@@ -23,6 +23,8 @@ interface ProfileScreenProps {
   onLoadMorePosts: () => void;
   onSubmitPost: (content: string, images: File[]) => Promise<boolean>;
   postSubmitting: boolean;
+  postError: string | null;
+  onClearPostError: () => void;
   onEditPost: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDeletePost: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
@@ -50,6 +52,8 @@ export function ProfileScreen({
   onLoadMorePosts,
   onSubmitPost,
   postSubmitting,
+  postError,
+  onClearPostError,
   onEditPost,
   onDeletePost,
   onToggleLike,
@@ -121,6 +125,8 @@ export function ProfileScreen({
           avatarUrl={profile.avatarUrl}
           onSubmit={onSubmitPost}
           submitting={postSubmitting}
+          error={postError}
+          onClearError={onClearPostError}
           onOpenProfile={() => onOpenProfile(profile.id)}
         />
       )}

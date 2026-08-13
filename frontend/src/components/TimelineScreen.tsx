@@ -258,6 +258,8 @@ export function TimelineScreen({
             avatarUrl={currentUser.avatarUrl}
             onSubmit={addPost}
             submitting={submitting}
+            error={error}
+            onClearError={clearError}
             onOpenProfile={() => openProfile(currentUser.id)}
           />
 
@@ -318,6 +320,8 @@ export function TimelineScreen({
             onLoadMorePosts={loadMoreProfilePosts}
             onSubmitPost={addProfilePost}
             postSubmitting={profilePostSubmitting}
+            postError={profilePostsError}
+            onClearPostError={clearProfilePostsError}
             onEditPost={postStore.editPost}
             onDeletePost={postStore.removePost}
             onToggleLike={likes.toggleLike}
