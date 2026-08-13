@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
+import { useObjectUrlPreviews } from '../hooks/useObjectUrlPreviews';
 import { MAX_POST_IMAGES, validateImageFile } from '../utils/imageFile';
 
 export interface ExistingPostImage {
@@ -30,15 +31,7 @@ export function PostImagePicker({
   disabled,
 }: PostImagePickerProps) {
   const [error, setError] = useState<string | null>(null);
-
-  // 新規ファイルのプレビュー用object URL。newImages自体が変わるたびに作り直し、
-  // 直前のものは破棄する（プレビュー用のURLをリークさせない）
-  const newImagePreviews = useMemo(() => newImages.map((file) => URL.createObjectURL(file)), [newImages]);
-  useEffect(() => {
-    return () => {
-      newImagePreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [newImagePreviews]);
+  const newImagePreviews = useObjectUrlPreviews(newImages);
 
   const remainingSlots = MAX_POST_IMAGES - existingImages.length - newImages.length;
 

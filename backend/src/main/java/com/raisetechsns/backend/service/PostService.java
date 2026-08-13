@@ -36,6 +36,9 @@ public class PostService {
     private static final Logger LOG = LoggerFactory.getLogger(PostService.class);
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 50;
+    // 1投稿につき添付できる画像の最大枚数。フロントエンド側の表示・入力制限（frontend/src/utils/imageFile.ts
+    // のMAX_POST_IMAGES）と値を合わせること。Java/TypeScriptで値を共有する仕組みは無く、
+    // このバックエンド側が最終的な防衛ライン（フロントエンド側がズレても不正な投稿は拒否できる）
     private static final int MAX_IMAGES_PER_POST = 4;
     private static final String IMAGE_FOLDER = "posts";
 

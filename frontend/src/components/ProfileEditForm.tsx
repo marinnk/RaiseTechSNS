@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useObjectUrlPreviews } from '../hooks/useObjectUrlPreviews';
 import { MAX_BIO_LENGTH, isValidBio } from '../utils/profileBio';
 import { validateImageFile } from '../utils/imageFile';
 
@@ -28,16 +29,15 @@ export function ProfileEditForm({
 }: ProfileEditFormProps) {
   const [bio, setBio] = useState(initialBio);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // 選択中のアバター画像ファイル。プレビュー用object URLの生成・破棄はuseObjectUrlPreviewsに任せる
+  // （PostImagePickerと共通化。プレビューを不要にしたいときはnullに戻すだけでよい）
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  // useObjectUrlPreviewsは配列を受け取るため、previewFileが変わったときだけ新しい配列参照になる
+  // よう安定化する（毎レンダー新しい配列リテラルを渡すとURLが毎回作り直されてしまう）
+  const previewFiles = useMemo(() => (previewFile ? [previewFile] : []), [previewFile]);
+  const [previewUrl = null] = useObjectUrlPreviews(previewFiles);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canSave = isValidBio(bio) && !submitting;
-
-  // アップロード成功後（avatarUrlがサーバー側の値に更新された後）は、ローカルプレビューは不要になる
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,19 +56,11 @@ export function ProfileEditForm({
       return;
     }
     setAvatarError(null);
-
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return objectUrl;
-    });
+    setPreviewFile(file);
 
     const success = await onUploadAvatar(file);
     if (!success) {
-      setPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      setPreviewFile(null);
     }
   };
 
@@ -76,10 +68,7 @@ export function ProfileEditForm({
     setAvatarError(null);
     const success = await onRemoveAvatar();
     if (success) {
-      setPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      setPreviewFile(null);
     }
   };
 
