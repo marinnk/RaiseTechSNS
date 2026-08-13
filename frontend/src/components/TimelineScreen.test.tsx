@@ -982,6 +982,79 @@ describe('TimelineScreen', () => {
     expect(screen.queryByLabelText('投稿内容')).not.toBeInTheDocument();
   });
 
+  it('自分のプロフィールで投稿を送信中に別の利用者のプロフィールへ移動すると、移動先の一覧には反映されない', async () => {
+    const user = userEvent.setup();
+    let resolveCreatePost: (created: Post) => void = () => {};
+    const createPostPromise = new Promise<Post>((resolve) => {
+      resolveCreatePost = resolve;
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const path = url.replace('http://localhost:8080', '');
+        const method = init?.method ?? 'GET';
+        const key = `${method} ${path}`;
+        if (key === 'POST /api/posts') {
+          const created = await createPostPromise;
+          return { ok: true, status: 201, json: async () => created } as Response;
+        }
+        const responses: Record<string, () => { status: number; body?: unknown }> = {
+          'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+          'GET /api/users/1': () => ({
+            status: 200,
+            body: profile({ id: 1, username: 'taro', displayName: '太郎', isOwnedByMe: true }),
+          }),
+          'GET /api/posts?limit=20&userId=1': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+          'GET /api/users?q=jiro': () => ({
+            status: 200,
+            body: { users: [{ id: 2, username: 'jiro', displayName: '次郎', avatarUrl: null, followedByMe: false }] },
+          }),
+          'GET /api/users/2': () => ({ status: 200, body: profile({ id: 2, username: 'jiro', displayName: '次郎' }) }),
+          'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        };
+        const handler = responses[key];
+        if (!handler) throw new Error(`unexpected fetch call: ${key}`);
+        const { status, body } = handler();
+        return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    // 自分のプロフィールで投稿フォームに入力し、送信する（POST /api/postsはまだ完了しない）
+    await user.click(screen.getByRole('button', { name: '太郎' }));
+    await screen.findByText('@taro');
+    await user.type(screen.getByLabelText('投稿内容'), '送信中に移動');
+    await user.click(screen.getByRole('button', { name: '投稿' }));
+
+    // 送信が完了する前に、検索から別の利用者のプロフィールへ移動する
+    await user.click(screen.getByRole('button', { name: '検索' }));
+    await user.type(screen.getByLabelText('ユーザー名・表示名で検索'), 'jiro');
+    await user.click(within(screen.getByRole('search')).getByRole('button', { name: '検索' }));
+    await user.click(await screen.findByRole('button', { name: /次郎/ }));
+    await screen.findByText('@jiro');
+    await screen.findByText('まだ投稿がありません。');
+
+    // ここで最初の送信が完了する
+    await act(async () => {
+      resolveCreatePost(post({ id: 99, content: '送信中に移動' }));
+      await createPostPromise;
+    });
+
+    expect(screen.queryByText('送信中に移動')).not.toBeInTheDocument();
+    expect(screen.getByText('まだ投稿がありません。')).toBeInTheDocument();
+  });
+
   it('ヘッダーの「検索」からユーザーを検索し、結果からプロフィールに遷移できる', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

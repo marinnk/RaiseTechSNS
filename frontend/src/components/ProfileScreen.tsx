@@ -117,7 +117,12 @@ export function ProfileScreen({
       </div>
 
       {profile.isOwnedByMe && (
-        <PostForm avatarUrl={profile.avatarUrl} onSubmit={onSubmitPost} submitting={postSubmitting} onOpenProfile={() => {}} />
+        <PostForm
+          avatarUrl={profile.avatarUrl}
+          onSubmit={onSubmitPost}
+          submitting={postSubmitting}
+          onOpenProfile={() => onOpenProfile(profile.id)}
+        />
       )}
 
       <h2 className="profile-posts-heading">{profile.displayName}の投稿</h2>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPost, fetchPosts } from '../api/posts';
+import { fetchPosts } from '../api/posts';
 import { toErrorMessage } from '../utils/apiError';
+import { useCreatePost } from './useCreatePost';
 import type { Post } from '../types/post';
 
 const PAGE_SIZE = 20;
@@ -8,8 +9,8 @@ const PAGE_SIZE = 20;
 /**
  * プロフィール画面の「その利用者の投稿id一覧」を管理するフック。usePostsと違い、他利用者の
  * 新規投稿を検知するポーリングは持たない（プロフィール画面ではリアルタイム反映を要件と
- * していないため）。自分のプロフィールを表示しているときの新規投稿（`addPost`）は
- * usePosts.addPostと同様の形でサポートする。
+ * していないため）。自分のプロフィールを表示しているときの新規投稿（`addPost`）は、
+ * usePostsと共有する{@link useCreatePost}でサポートする。
  *
  * 投稿の実データ（本文・いいね数等）は持たず、{@link usePostStore}が唯一の情報源となる。
  * 編集・削除・いいね・コメント数の更新もストア側の関数（`editPost`/`removePost`/
@@ -30,7 +31,6 @@ export function useUserPosts(userId: number | null, upsertPosts: (posts: Post[])
   const loadingMoreRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (userId === null) {
@@ -80,24 +80,15 @@ export function useUserPosts(userId: number | null, upsertPosts: (posts: Post[])
     }
   }, [userId, upsertPosts]);
 
+  // 送信中に別の利用者のプロフィールへ遷移していたら（userIdが変わっていたら）、その投稿は
+  // 今表示中の一覧には反映しない（ストアへの反映は行われるので、データ自体は失われない）
+  const { submitting, addPost: addPostForUser } = useCreatePost(userId, upsertPosts, setPostIds, setError);
   const addPost = useCallback(
-    async (content: string, images: File[]): Promise<boolean> => {
-      if (userId === null) return false;
-      setError(null);
-      setSubmitting(true);
-      try {
-        const created = await createPost({ content }, images);
-        upsertPosts([created]);
-        setPostIds((prev) => [created.id, ...prev]);
-        return true;
-      } catch (err) {
-        setError(toErrorMessage(err, '投稿に失敗しました。'));
-        return false;
-      } finally {
-        setSubmitting(false);
-      }
+    (content: string, images: File[]): Promise<boolean> => {
+      if (userId === null) return Promise.resolve(false);
+      return addPostForUser(content, images);
     },
-    [userId, upsertPosts],
+    [userId, addPostForUser],
   );
 
   const clearError = useCallback(() => setError(null), []);
