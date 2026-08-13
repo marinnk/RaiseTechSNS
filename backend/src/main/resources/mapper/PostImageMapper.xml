@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.raisetechsns.backend.mapper.PostImageMapper">
+
+    <sql id="columns">
+        id, post_id, image_url, display_order
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO post_images (post_id, image_url, display_order)
+        VALUES (#{postId}, #{imageUrl}, #{displayOrder})
+    </insert>
+
+    <select id="findByPostId" resultType="com.raisetechsns.backend.entity.PostImage">
+        SELECT <include refid="columns"/>
+        FROM post_images
+        WHERE post_id = #{postId}
+        ORDER BY display_order
+    </select>
+
+    <select id="findByPostIds" resultType="com.raisetechsns.backend.entity.PostImage">
+        SELECT <include refid="columns"/>
+        FROM post_images
+        WHERE post_id IN
+        <foreach item="postId" collection="postIds" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        ORDER BY post_id, display_order
+    </select>
+
+    <delete id="deleteByPostId">
+        DELETE FROM post_images
+        WHERE post_id = #{postId}
+    </delete>
+
+</mapper>

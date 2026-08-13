@@ -7,7 +7,7 @@ interface PostListProps {
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
-  onEdit: (postId: number, content: string) => Promise<boolean>;
+  onEdit: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDelete: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
   isTogglingLike: (postId: number) => boolean;

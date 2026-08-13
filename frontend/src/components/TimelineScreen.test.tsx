@@ -31,6 +31,7 @@ function post(overrides: Partial<Post> = {}): Post {
     likeCount: 0,
     commentCount: 0,
     likedByMe: false,
+    images: [],
     ...overrides,
   };
 }
@@ -139,6 +140,41 @@ describe('TimelineScreen', () => {
     expect(screen.queryByText('まだ投稿がありません。')).not.toBeInTheDocument();
   });
 
+  it('画像を添付して投稿すると一覧に画像が表示される', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({ status: 200, body: { posts: [], hasMore: false } }),
+        'POST /api/posts': () => ({
+          status: 201,
+          body: post({
+            id: 1,
+            content: '画像付き投稿',
+            images: [{ id: 1, imageUrl: 'https://example.com/posts/a.jpg' }],
+          }),
+        }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('まだ投稿がありません。');
+
+    await user.type(screen.getByLabelText('投稿内容'), '画像付き投稿');
+    const file = new File(['dummy'], 'a.jpg', { type: 'image/jpeg' });
+    await user.upload(screen.getByLabelText(/画像を選択/), file);
+    await user.click(screen.getByRole('button', { name: '投稿' }));
+
+    expect(await screen.findByAltText('投稿画像')).toHaveAttribute('src', 'https://example.com/posts/a.jpg');
+  });
+
   it('投稿内容のテキストエリアには280文字のmaxLengthが設定されており、未入力時は投稿ボタンが無効になる', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -228,6 +264,56 @@ describe('TimelineScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: '保存' }));
 
     expect(await screen.findByText('編集後')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('編集モーダルで既存画像を削除し新規画像を追加できる', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        'GET /api/posts?limit=20': () => ({
+          status: 200,
+          body: {
+            posts: [
+              post({
+                id: 1,
+                content: '編集前',
+                images: [{ id: 10, imageUrl: 'https://example.com/posts/old.jpg' }],
+              }),
+            ],
+            hasMore: false,
+          },
+        }),
+        'PUT /api/posts/1': () => ({
+          status: 200,
+          body: post({
+            id: 1,
+            content: '編集後',
+            images: [{ id: 11, imageUrl: 'https://example.com/posts/new.jpg' }],
+          }),
+        }),
+      }),
+    );
+
+    render(
+      <TimelineScreen
+        currentUser={currentUser}
+        onLogout={vi.fn()}
+        logoutSubmitting={false}
+        onCurrentUserAvatarChange={vi.fn()}
+      />,
+    );
+    await screen.findByText('編集前');
+
+    await user.click(screen.getByRole('button', { name: '編集' }));
+    const dialog = await screen.findByRole('dialog', { name: '投稿を編集' });
+    await user.click(within(dialog).getByRole('button', { name: 'この画像を削除' }));
+    const file = new File(['dummy'], 'new.jpg', { type: 'image/jpeg' });
+    await user.upload(within(dialog).getByLabelText(/画像を選択/), file);
+    await user.click(within(dialog).getByRole('button', { name: '保存' }));
+
+    expect(await screen.findByAltText('投稿画像')).toHaveAttribute('src', 'https://example.com/posts/new.jpg');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

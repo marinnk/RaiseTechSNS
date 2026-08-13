@@ -1,3 +1,8 @@
+export interface PostImage {
+  id: number;
+  imageUrl: string;
+}
+
 export interface Post {
   id: number;
   userId: number;
@@ -11,6 +16,7 @@ export interface Post {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+  images: PostImage[];
 }
 
 export interface PostListResponse {
@@ -24,4 +30,6 @@ export interface CreatePostRequest {
 
 export interface UpdatePostRequest {
   content: string;
+  // 編集後も残す既存画像のid。バックエンドは必須項目として扱う（省略不可）
+  keepImageIds: number[];
 }

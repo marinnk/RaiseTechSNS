@@ -55,10 +55,10 @@ export function usePostStore() {
   }, []);
 
   const editPost = useCallback(
-    async (postId: number, content: string): Promise<boolean> => {
+    async (postId: number, content: string, keepImageIds: number[], newImages: File[]): Promise<boolean> => {
       setError(null);
       try {
-        const updated = await updatePost(postId, { content });
+        const updated = await updatePost(postId, { content, keepImageIds }, newImages);
         upsertPosts([updated]);
         return true;
       } catch (err) {

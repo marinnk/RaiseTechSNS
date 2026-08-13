@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +42,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "uploaded file is too large");
+    }
+
+    /**
+     * {@code Content-Type}が{@code @RequestMapping}の{@code consumes}と合わない場合にSpring MVCが
+     * 投げる例外（例：投稿の作成・編集はmultipart/form-data専用だが、application/jsonで送られた場合）。
+     * {@link ResponseStatusException}ではないため、このハンドラーが無いと
+     * {@link #handleUnexpectedException}に落ちて415ではなく500になってしまう。
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported content type");
     }
 
     @ExceptionHandler(Exception.class)

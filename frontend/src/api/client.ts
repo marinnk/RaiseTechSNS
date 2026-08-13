@@ -104,6 +104,16 @@ export async function apiPostMultipart<T>(path: string, formData: FormData): Pro
 }
 
 /**
+ * multipart/form-data用のPUT。投稿編集（テキスト＋画像をまとめて送信）で使う。
+ * Content-Typeを付けない理由はapiPostMultipartと同じ。
+ */
+export async function apiPutMultipart<T>(path: string, formData: FormData): Promise<T> {
+  const res = await request(path, { method: 'PUT', body: formData });
+  await throwIfError(res);
+  return res.json() as Promise<T>;
+}
+
+/**
  * レスポンスボディが無い（204 No Content等）POSTリクエスト用。
  * apiPostと違い、成功時に`.json()`を呼ばない。
  */

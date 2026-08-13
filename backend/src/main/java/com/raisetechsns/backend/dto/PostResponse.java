@@ -1,6 +1,7 @@
 package com.raisetechsns.backend.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.raisetechsns.backend.entity.PostWithAuthor;
 
@@ -24,10 +25,14 @@ public record PostResponse(
         boolean isOwnedByMe,
         long likeCount,
         long commentCount,
-        boolean likedByMe
+        boolean likedByMe,
+        List<PostImageResponse> images
 ) {
 
-    public static PostResponse from(PostWithAuthor row, Long currentUserId) {
+    /**
+     * @param images 表示順（{@code display_order}昇順）に並んだ画像一覧。投稿に画像が無ければ空リスト
+     */
+    public static PostResponse from(PostWithAuthor row, Long currentUserId, List<PostImageResponse> images) {
         return new PostResponse(
                 row.getPostId(),
                 row.getUserId(),
@@ -40,6 +45,7 @@ public record PostResponse(
                 row.getUserId().equals(currentUserId),
                 row.getLikeCount(),
                 row.getCommentCount(),
-                row.isLikedByMe());
+                row.isLikedByMe(),
+                images);
     }
 }

@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,7 +39,10 @@ class ProfileServiceTest {
     @Mock
     private UserMapper userMapper;
 
-    @Mock
+    // deleteAfterCommitはStorageServiceのdefaultメソッドのため、Mockitoの通常のモックだと
+    // 本体が実行されず素通りしてしまう。CALLS_REAL_METHODSにより、defaultメソッド（deleteAfterCommit）は
+    // 実際のロジックを実行しつつ、抽象メソッド（upload・delete）は通常通りスタブ・検証できる
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
     private StorageService storageService;
 
     @InjectMocks

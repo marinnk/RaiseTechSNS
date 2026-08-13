@@ -2,7 +2,10 @@ package com.raisetechsns.backend.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -10,16 +13,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.CreatePostRequest;
+import com.raisetechsns.backend.dto.PostImageResponse;
 import com.raisetechsns.backend.dto.PostListResponse;
 import com.raisetechsns.backend.dto.PostResponse;
 import com.raisetechsns.backend.dto.UpdatePostRequest;
 import com.raisetechsns.backend.entity.Post;
+import com.raisetechsns.backend.entity.PostImage;
 import com.raisetechsns.backend.entity.PostWithAuthor;
 import com.raisetechsns.backend.entity.User;
+import com.raisetechsns.backend.mapper.PostImageMapper;
 import com.raisetechsns.backend.mapper.PostMapper;
+import com.raisetechsns.backend.storage.StorageService;
+import com.raisetechsns.backend.validation.ImageValidation;
 
 @Service
 public class PostService {
@@ -27,11 +36,20 @@ public class PostService {
     private static final Logger LOG = LoggerFactory.getLogger(PostService.class);
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 50;
+    // 1投稿につき添付できる画像の最大枚数。フロントエンド側の表示・入力制限（frontend/src/utils/imageFile.ts
+    // のMAX_POST_IMAGES）と値を合わせること。Java/TypeScriptで値を共有する仕組みは無く、
+    // このバックエンド側が最終的な防衛ライン（フロントエンド側がズレても不正な投稿は拒否できる）
+    private static final int MAX_IMAGES_PER_POST = 4;
+    private static final String IMAGE_FOLDER = "posts";
 
     private final PostMapper postMapper;
+    private final PostImageMapper postImageMapper;
+    private final StorageService storageService;
 
-    public PostService(PostMapper postMapper) {
+    public PostService(PostMapper postMapper, PostImageMapper postImageMapper, StorageService storageService) {
         this.postMapper = postMapper;
+        this.postImageMapper = postImageMapper;
+        this.storageService = storageService;
     }
 
     /**
@@ -62,7 +80,7 @@ public class PostService {
         boolean hasMore = rows.size() > clampedLimit;
         List<PostWithAuthor> page = hasMore ? rows.subList(0, clampedLimit) : rows;
 
-        List<PostResponse> posts = page.stream().map(row -> PostResponse.from(row, currentUserId)).toList();
+        List<PostResponse> posts = toResponsesWithImages(page, currentUserId);
         return new PostListResponse(posts, hasMore);
     }
 
@@ -76,40 +94,121 @@ public class PostService {
             Long targetUserId, boolean followingOnly) {
         List<PostWithAuthor> ascendingRows = postMapper.findNewerWithAuthor(
                 afterId, limit, currentUserId, targetUserId, followingOnly);
-        List<PostResponse> posts = ascendingRows.stream()
-                .map(row -> PostResponse.from(row, currentUserId))
+        List<PostResponse> posts = toResponsesWithImages(ascendingRows, currentUserId).stream()
                 .collect(Collectors.toCollection(ArrayList::new));
         Collections.reverse(posts);
         return new PostListResponse(posts, false);
     }
 
+    /**
+     * ページ内の投稿idをまとめて{@link PostImageMapper#findByPostIds}に渡し、投稿件数分の
+     * クエリが発生する（N+1問題）のを避ける。
+     */
+    private List<PostResponse> toResponsesWithImages(List<PostWithAuthor> rows, Long currentUserId) {
+        List<Long> postIds = rows.stream().map(PostWithAuthor::getPostId).toList();
+        // postIdsが空だと、findByPostIdsのSQLの IN (...) が空になり構文エラーになるため、
+        // その場合はマッパーを呼ばずに空のMapを使う（投稿が0件のタイムライン等で毎回発生しうる）
+        Map<Long, List<PostImageResponse>> imagesByPostId = postIds.isEmpty()
+                ? Map.of()
+                : postImageMapper.findByPostIds(postIds).stream()
+                        .collect(Collectors.groupingBy(
+                                PostImage::getPostId,
+                                Collectors.mapping(PostImageResponse::from, Collectors.toList())));
+        return rows.stream()
+                .map(row -> PostResponse.from(row, currentUserId,
+                        imagesByPostId.getOrDefault(row.getPostId(), List.of())))
+                .toList();
+    }
+
+    /**
+     * 投稿を作成する。画像は最大{@value #MAX_IMAGES_PER_POST}枚まで、jpg/png・5MB以下（{@link ImageValidation}）。
+     *
+     * <p>枚数チェック・形式チェックはすべてのアップロード処理より前に行うため、検証エラーで
+     * 中断した場合にS3へのアップロードが一部だけ発生してしまう（孤立した画像が残る）ことはない。
+     * 一方、検証を通過した後のアップロード自体が（インフラ障害等で）途中失敗した場合は、
+     * その回だけ孤立した画像が残りうる。学習規模のアプリでは許容し、今回は対応しない。
+     */
     @Transactional
-    public PostResponse create(CreatePostRequest request, User currentUser) {
+    public PostResponse create(CreatePostRequest request, List<MultipartFile> images, User currentUser) {
+        List<MultipartFile> nonEmptyImages = nonEmptyImages(images);
+        validateImageCount(nonEmptyImages.size());
+        nonEmptyImages.forEach(ImageValidation::validate);
+
         Post post = new Post();
         post.setUserId(currentUser.getId());
         post.setContent(request.content());
         postMapper.insert(post);
-        LOG.info("post created: id={}, userId={}", post.getId(), currentUser.getId());
+        insertImages(post.getId(), nonEmptyImages, 0);
+        LOG.info("post created: id={}, userId={}, images={}", post.getId(), currentUser.getId(), nonEmptyImages.size());
         return findByIdOrThrow(post.getId(), currentUser.getId());
     }
 
+    /**
+     * 投稿を編集する。{@code request.keepImageIds()}で指定した既存画像だけを残し、{@code newImages}を
+     * 追加する（残す枚数＋新規枚数が{@value #MAX_IMAGES_PER_POST}枚を超えると400）。
+     *
+     * <p>既存の{@code post_images}行は一旦すべて削除し、残す画像をkeepImageIdsの順で、続けて
+     * 新規画像を、表示順を0から振り直して入れ直す。削除対象（keepImageIdsに含まれなかった
+     * 既存画像）のS3上の実ファイルは、{@link StorageService#deleteAfterCommit}によりこの
+     * トランザクションがコミットされた後に削除する。
+     */
     @Transactional
-    public PostResponse update(Long postId, UpdatePostRequest request, User currentUser) {
+    public PostResponse update(Long postId, UpdatePostRequest request, List<MultipartFile> newImages,
+            User currentUser) {
         requireOwnPost(postId, currentUser);
+        List<PostImage> existingImages = postImageMapper.findByPostId(postId);
+        Map<Long, PostImage> existingImagesById = existingImages.stream()
+                .collect(Collectors.toMap(PostImage::getId, image -> image));
+
+        // LinkedHashSetで重複を除きつつ、クライアントが送ってきた順序を保つ。以前はここでの重複除去が
+        // 検証（枚数チェック）にしか使われず、下の再挿入ループは重複を含みうる元のList
+        // （request.keepImageIds()）を直接forEachしていたため、同じidを複数回送ると
+        // 枚数チェックをすり抜けて同じ画像が複数行insertされてしまう不具合があった
+        Set<Long> keepImageIds = new LinkedHashSet<>(request.keepImageIds());
+        if (!existingImagesById.keySet().containsAll(keepImageIds)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "keepImageIds contains an unknown image id");
+        }
+
+        List<MultipartFile> nonEmptyNewImages = nonEmptyImages(newImages);
+        validateImageCount(keepImageIds.size() + nonEmptyNewImages.size());
+        nonEmptyNewImages.forEach(ImageValidation::validate);
+
         int updated = postMapper.update(postId, currentUser.getId(), request.content());
         if (updated == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found");
         }
+
+        postImageMapper.deleteByPostId(postId);
+        int order = 0;
+        for (Long keepId : keepImageIds) {
+            PostImage kept = existingImagesById.get(keepId);
+            postImageMapper.insert(postId, kept.getImageUrl(), order++);
+        }
+        insertImages(postId, nonEmptyNewImages, order);
+
+        for (PostImage existing : existingImages) {
+            if (!keepImageIds.contains(existing.getId())) {
+                storageService.deleteAfterCommit(existing.getImageUrl());
+            }
+        }
+
         return findByIdOrThrow(postId, currentUser.getId());
     }
 
+    /**
+     * 投稿を削除する。{@code post_images}はDB側の{@code ON DELETE CASCADE}（V5マイグレーション）で
+     * 自動的に削除されるが、S3上の実ファイルはアプリ側で削除する必要があるため、投稿を削除する
+     * 前に画像のURLを取得しておき、コミット後に削除する。
+     */
     @Transactional
     public void delete(Long postId, User currentUser) {
         requireOwnPost(postId, currentUser);
+        List<PostImage> images = postImageMapper.findByPostId(postId);
         int deleted = postMapper.delete(postId, currentUser.getId());
         if (deleted == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found");
         }
+        images.forEach(image -> storageService.deleteAfterCommit(image.getImageUrl()));
     }
 
     /**
@@ -139,7 +238,37 @@ public class PostService {
     private PostResponse findByIdOrThrow(Long postId, Long currentUserId) {
         PostWithAuthor row = postMapper.findByIdWithAuthor(postId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"));
-        return PostResponse.from(row, currentUserId);
+        List<PostImageResponse> images = postImageMapper.findByPostId(postId).stream()
+                .map(PostImageResponse::from)
+                .toList();
+        return PostResponse.from(row, currentUserId, images);
+    }
+
+    /**
+     * Spring MultipartのList引数は、画像を1枚も選ばなかった場合に空のMultipartFile（サイズ0、
+     * ファイル名も空）を1件含んだリストで渡ってくることがあるため、それらを除いてから枚数・
+     * 内容を検証する。
+     */
+    private List<MultipartFile> nonEmptyImages(List<MultipartFile> images) {
+        if (images == null) {
+            return List.of();
+        }
+        return images.stream().filter(file -> file != null && !file.isEmpty()).toList();
+    }
+
+    private void validateImageCount(int count) {
+        if (count > MAX_IMAGES_PER_POST) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "a post can have at most " + MAX_IMAGES_PER_POST + " images");
+        }
+    }
+
+    private void insertImages(Long postId, List<MultipartFile> images, int startOrder) {
+        int order = startOrder;
+        for (MultipartFile image : images) {
+            String url = storageService.upload(IMAGE_FOLDER, image);
+            postImageMapper.insert(postId, url, order++);
+        }
     }
 
     private int clampLimit(Integer limit) {

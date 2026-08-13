@@ -4,10 +4,11 @@ import { formatDate } from '../utils/formatDate';
 import { AvatarIcon } from './AvatarIcon';
 import { Modal } from './Modal';
 import { PostEditForm } from './PostEditForm';
+import { PostImageGrid } from './PostImageGrid';
 
 interface PostItemProps {
   post: Post;
-  onEdit: (postId: number, content: string) => Promise<boolean>;
+  onEdit: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDelete: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
   isTogglingLike: boolean;
@@ -35,9 +36,9 @@ export function PostItem({
 
   const closeModal = () => setModalMode('none');
 
-  const handleSave = async (content: string) => {
+  const handleSave = async (content: string, keepImageIds: number[], newImages: File[]) => {
     setEditSubmitting(true);
-    const ok = await onEdit(post.id, content);
+    const ok = await onEdit(post.id, content, keepImageIds, newImages);
     setEditSubmitting(false);
     if (ok) closeModal();
   };
@@ -78,6 +79,7 @@ export function PostItem({
         )}
       </div>
       <p className="post-content">{post.content}</p>
+      <PostImageGrid images={post.images} />
 
       <div className="post-stats">
         <button
@@ -104,6 +106,7 @@ export function PostItem({
         <Modal onClose={closeModal} ariaLabel="投稿を編集">
           <PostEditForm
             initialContent={post.content}
+            initialImages={post.images}
             submitting={editSubmitting}
             onCancel={closeModal}
             onSave={handleSave}

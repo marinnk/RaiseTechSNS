@@ -123,11 +123,11 @@ export function usePosts(scope: 'all' | 'following', upsertPosts: (posts: Post[]
   }, [apiScope, upsertPosts]);
 
   const addPost = useCallback(
-    async (content: string): Promise<boolean> => {
+    async (content: string, images: File[]): Promise<boolean> => {
       setError(null);
       setSubmitting(true);
       try {
-        const created = await createPost({ content });
+        const created = await createPost({ content }, images);
         upsertPosts([created]);
         setPostIds((prev) => [created.id, ...prev]);
         return true;
