@@ -3,6 +3,7 @@ import type { Post } from '../types/post';
 import type { Profile } from '../types/profile';
 import type { UserSummary } from '../types/follow';
 import { FollowListPanel } from './FollowListPanel';
+import { PostCreateButton } from './PostCreateButton';
 import { PostList } from './PostList';
 
 interface ProfileScreenProps {
@@ -20,6 +21,10 @@ interface ProfileScreenProps {
   postsHasMore: boolean;
   postsLoadingMore: boolean;
   onLoadMorePosts: () => void;
+  onSubmitPost: (content: string, images: File[]) => Promise<boolean>;
+  postSubmitting: boolean;
+  postError: string | null;
+  onClearPostError: () => void;
   onEditPost: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDeletePost: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
@@ -45,6 +50,10 @@ export function ProfileScreen({
   postsHasMore,
   postsLoadingMore,
   onLoadMorePosts,
+  onSubmitPost,
+  postSubmitting,
+  postError,
+  onClearPostError,
   onEditPost,
   onDeletePost,
   onToggleLike,
@@ -110,6 +119,17 @@ export function ProfileScreen({
           />
         )}
       </div>
+
+      {profile.isOwnedByMe && (
+        <PostCreateButton
+          avatarUrl={profile.avatarUrl}
+          onSubmit={onSubmitPost}
+          submitting={postSubmitting}
+          error={postError}
+          onClearError={onClearPostError}
+          onOpenProfile={() => onOpenProfile(profile.id)}
+        />
+      )}
 
       <h2 className="profile-posts-heading">{profile.displayName}の投稿</h2>
       {postsLoading ? (

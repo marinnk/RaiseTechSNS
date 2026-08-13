@@ -11,8 +11,8 @@ import { useUserSearch } from '../hooks/useUserSearch';
 import type { AuthUser } from '../types/auth';
 import { AvatarIcon } from './AvatarIcon';
 import { NewPostsBanner } from './NewPostsBanner';
+import { PostCreateButton } from './PostCreateButton';
 import { PostDetailView } from './PostDetailView';
-import { PostForm } from './PostForm';
 import { PostList } from './PostList';
 import { ProfileEditForm } from './ProfileEditForm';
 import { ProfileScreen } from './ProfileScreen';
@@ -139,7 +139,9 @@ export function TimelineScreen({
     loadingMore: profilePostsLoadingMore,
     hasMore: profilePostsHasMore,
     error: profilePostsError,
+    submitting: profilePostSubmitting,
     loadMore: loadMoreProfilePosts,
+    addPost: addProfilePost,
     clearError: clearProfilePostsError,
   } = useUserPosts(profileUserId, postStore.upsertPosts);
   const profilePosts = postStore.getPosts(profilePostIds);
@@ -252,10 +254,12 @@ export function TimelineScreen({
 
       {view.mode === 'list' ? (
         <>
-          <PostForm
+          <PostCreateButton
             avatarUrl={currentUser.avatarUrl}
             onSubmit={addPost}
             submitting={submitting}
+            error={error}
+            onClearError={clearError}
             onOpenProfile={() => openProfile(currentUser.id)}
           />
 
@@ -314,6 +318,10 @@ export function TimelineScreen({
             postsHasMore={profilePostsHasMore}
             postsLoadingMore={profilePostsLoadingMore}
             onLoadMorePosts={loadMoreProfilePosts}
+            onSubmitPost={addProfilePost}
+            postSubmitting={profilePostSubmitting}
+            postError={profilePostsError}
+            onClearPostError={clearProfilePostsError}
             onEditPost={postStore.editPost}
             onDeletePost={postStore.removePost}
             onToggleLike={likes.toggleLike}

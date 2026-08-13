@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPost, fetchPosts } from '../api/posts';
+import { fetchPosts } from '../api/posts';
 import { toErrorMessage } from '../utils/apiError';
+import { useCreatePost } from './useCreatePost';
 import type { Post } from '../types/post';
 
 const PAGE_SIZE = 20;
@@ -33,7 +34,6 @@ export function usePosts(scope: 'all' | 'following', upsertPosts: (posts: Post[]
   const loadingMoreRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   // ポーリングで見つかった他利用者の新着投稿のid。スクロール位置をいきなり動かさないよう、
   // 見つかった時点ではpostIdsに混ぜず、ここに貯めておいて「新着通知バナー」がクリックされたら反映する
@@ -122,24 +122,9 @@ export function usePosts(scope: 'all' | 'following', upsertPosts: (posts: Post[]
     }
   }, [apiScope, upsertPosts]);
 
-  const addPost = useCallback(
-    async (content: string, images: File[]): Promise<boolean> => {
-      setError(null);
-      setSubmitting(true);
-      try {
-        const created = await createPost({ content }, images);
-        upsertPosts([created]);
-        setPostIds((prev) => [created.id, ...prev]);
-        return true;
-      } catch (err) {
-        setError(toErrorMessage(err, '投稿に失敗しました。'));
-        return false;
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [upsertPosts],
-  );
+  // 送信中にタブが切り替わっていたら（apiScopeが変わっていたら）、その投稿は今表示中の
+  // 一覧には反映しない（ストアへの反映は行われるので、データ自体は失われない）
+  const { submitting, addPost } = useCreatePost(apiScope, upsertPosts, setPostIds, setError);
 
   const clearError = useCallback(() => setError(null), []);
 
