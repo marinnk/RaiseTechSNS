@@ -235,7 +235,12 @@ export function TimelineScreen({
 
       {view.mode === 'list' ? (
         <>
-          <PostForm avatarUrl={currentUser.avatarUrl} onSubmit={addPost} submitting={submitting} />
+          <PostForm
+            avatarUrl={currentUser.avatarUrl}
+            onSubmit={addPost}
+            submitting={submitting}
+            onOpenProfile={() => openProfile(currentUser.id)}
+          />
 
           <div className="timeline-tabs" role="tablist">
             <button
