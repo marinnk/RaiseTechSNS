@@ -44,7 +44,7 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 プロフィール機能・フォロー機能のAPI設計を追記（プロフィール取得・更新、フォロー登録・解除、フォロワー/フォロー中一覧のエンドポイント）。GET /api/postsに投稿者絞り込み（userId）・タイムラインの「フォロー中」タブ用の絞り込み（scope）のクエリパラメータを追加。フォロワー数・フォロー中数・フォロー済みフラグも、投稿のいいね数・コメント数と同様に相関サブクエリ・EXISTSで1回のSELECTにまとめて取得する方針を明記。users.bio・avatar_url、followsテーブルは既存のDB設計（4章）のまま変更なし。本バージョンではプロフィール編集は自己紹介のみを対象とし、アイコン画像のアップロード（S3連携）は別Issueとする
 
 **1.13 / 2026-08-13**  
-プロフィール画像（アイコン）の登録・更新・削除APIを追記（POST/DELETE /api/users/me/avatar）。AWS SDK for Java v2によるバックエンド経由のプロキシアップロード方式を採用し、画像の保存・削除を`StorageService`インターフェースで抽象化した。投稿への画像添付機能（post_images）は別途あらためて計画するため、今回のスコープには含めない
+プロフィール画像（アイコン）の登録・更新・削除APIを追記（POST/DELETE /api/users/me/avatar）。AWS SDK for Java v2によるバックエンド経由のプロキシアップロード方式を採用し、画像の保存・削除を`StorageService`インターフェースで抽象化した。ローカル開発では実際のAWSアカウントを使わずに動作確認できるよう、S3互換のMinIOをDocker Composeで起動して接続先とする方式に変更した。投稿への画像添付機能（post_images）は別途あらためて計画するため、今回のスコープには含めない
 
 ## 1. システム構成
 
@@ -319,6 +319,8 @@ erDiagram
 プロフィール取得レスポンスには`followerCount`（フォロワー数）・`followingCount`（フォロー中の数）・`followedByMe`（ログイン中の利用者がフォロー済みか）を含める。投稿のいいね数・コメント数と同様、利用者ごとに個別クエリで数えるとN+1問題が発生するため、相関サブクエリ・EXISTSで1回のSELECTにまとめて取得する（実装上はMyBatisの`UserMapper.findByIdWithStats`が該当）。
 
 アイコン画像のアップロードはAWS SDK for Java v2を使い、バックエンド経由でAmazon S3に実アップロードする（クライアントから直接S3にアップロードさせる署名付きURL方式ではなく、サーバー側で形式・サイズを検証してから書き込むプロキシアップロード方式）。画像の保存・削除は`StorageService`という汎用インターフェースで抽象化しており、実装は現状S3のみ（`S3StorageService`）。この抽象化により、将来投稿画像機能を実装する際にも同じ仕組みを再利用できる。
+
+ローカル開発では、実際のAWSアカウントを用意しなくても動作確認できるよう、S3互換のOSS（MinIO）をDocker Composeで起動し、それを接続先とする（`app.s3.endpoint`をMinIOのURLに向け、`forcePathStyle`を有効にする）。本番相当の環境では`app.s3.endpoint`を空にすることで、実際のAmazon S3の標準エンドポイントに切り替わる。
 
 ### フォローAPI
 

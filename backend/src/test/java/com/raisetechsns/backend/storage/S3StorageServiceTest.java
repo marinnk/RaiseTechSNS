@@ -27,10 +27,16 @@ class S3StorageServiceTest {
     @Mock
     private S3Client s3Client;
 
-    private final S3Properties properties = new S3Properties("test-bucket", "ap-northeast-1");
+    // endpoint未指定＝実際のAmazon S3を想定した設定
+    private final S3Properties properties =
+            new S3Properties("test-bucket", "ap-northeast-1", null, true, "test-key", "test-secret");
+
+    // endpoint指定あり＝ローカル開発のMinIOを想定した設定
+    private final S3Properties minioProperties =
+            new S3Properties("test-bucket", "ap-northeast-1", "http://localhost:9000", true, "test-key", "test-secret");
 
     @Test
-    void upload_bucketを指定してS3に書き込み画像URLを返す() {
+    void upload_bucketを指定してS3に書き込みpath_style形式の画像URLを返す() {
         S3StorageService service = new S3StorageService(s3Client, properties);
         MultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", new byte[100]);
 
@@ -40,7 +46,19 @@ class S3StorageServiceTest {
         verify(s3Client).putObject(captor.capture(), any(RequestBody.class));
         assertThat(captor.getValue().bucket()).isEqualTo("test-bucket");
         assertThat(captor.getValue().key()).startsWith("avatars/").endsWith(".jpg");
-        assertThat(url).isEqualTo("https://test-bucket.s3.ap-northeast-1.amazonaws.com/" + captor.getValue().key());
+        assertThat(url).isEqualTo("https://s3.ap-northeast-1.amazonaws.com/test-bucket/" + captor.getValue().key());
+    }
+
+    @Test
+    void upload_endpointが指定されている場合はそちらを画像URLのベースにする() {
+        S3StorageService service = new S3StorageService(s3Client, minioProperties);
+        MultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", new byte[100]);
+
+        String url = service.upload("avatars", file);
+
+        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(captor.capture(), any(RequestBody.class));
+        assertThat(url).isEqualTo("http://localhost:9000/test-bucket/" + captor.getValue().key());
     }
 
     @Test
@@ -59,7 +77,19 @@ class S3StorageServiceTest {
     void delete_URLからkeyを取り出してdeleteObjectを呼ぶ() {
         S3StorageService service = new S3StorageService(s3Client, properties);
 
-        service.delete("https://test-bucket.s3.ap-northeast-1.amazonaws.com/avatars/abc.jpg");
+        service.delete("https://s3.ap-northeast-1.amazonaws.com/test-bucket/avatars/abc.jpg");
+
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(captor.capture());
+        assertThat(captor.getValue().bucket()).isEqualTo("test-bucket");
+        assertThat(captor.getValue().key()).isEqualTo("avatars/abc.jpg");
+    }
+
+    @Test
+    void delete_MinIOのURLからもkeyを取り出してdeleteObjectを呼ぶ() {
+        S3StorageService service = new S3StorageService(s3Client, minioProperties);
+
+        service.delete("http://localhost:9000/test-bucket/avatars/abc.jpg");
 
         ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
         verify(s3Client).deleteObject(captor.capture());
