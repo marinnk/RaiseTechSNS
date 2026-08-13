@@ -103,10 +103,14 @@ public class PostService {
      */
     private List<PostResponse> toResponsesWithImages(List<PostWithAuthor> rows, Long currentUserId) {
         List<Long> postIds = rows.stream().map(PostWithAuthor::getPostId).toList();
-        Map<Long, List<PostImageResponse>> imagesByPostId = postImageMapper.findByPostIds(postIds).stream()
-                .collect(Collectors.groupingBy(
-                        PostImage::getPostId,
-                        Collectors.mapping(PostImageResponse::from, Collectors.toList())));
+        // postIdsが空だと、findByPostIdsのSQLの IN (...) が空になり構文エラーになるため、
+        // その場合はマッパーを呼ばずに空のMapを使う（投稿が0件のタイムライン等で毎回発生しうる）
+        Map<Long, List<PostImageResponse>> imagesByPostId = postIds.isEmpty()
+                ? Map.of()
+                : postImageMapper.findByPostIds(postIds).stream()
+                        .collect(Collectors.groupingBy(
+                                PostImage::getPostId,
+                                Collectors.mapping(PostImageResponse::from, Collectors.toList())));
         return rows.stream()
                 .map(row -> PostResponse.from(row, currentUserId,
                         imagesByPostId.getOrDefault(row.getPostId(), List.of())))

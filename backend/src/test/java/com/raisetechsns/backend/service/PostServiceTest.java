@@ -179,6 +179,18 @@ class PostServiceTest {
     }
 
     @Test
+    void list_投稿が0件でも例外にならずfindByPostIdsを呼ばない() {
+        // postIdsが空のままpostImageMapper.findByPostIdsを呼ぶと、生成されるSQLのIN (...)が
+        // 空になり構文エラーになる不具合の再発防止テスト（投稿0件のタイムラインで毎回発生しうる）
+        when(postMapper.findAllWithAuthor(eq(21), isNull(), eq(1L), isNull(), eq(false))).thenReturn(List.of());
+
+        PostListResponse result = postService.list(null, null, null, 1L, null, false);
+
+        assertThat(result.posts()).isEmpty();
+        verify(postImageMapper, never()).findByPostIds(any());
+    }
+
+    @Test
     void list_limit1件を超えて取得できた場合hasMoreがtrueになる() {
         // デフォルトlimit(20)なので、Mapperにはlimit+1=21件のリクエストが渡り、
         // ここでは21件返る（＝ページ超過あり）ケースを検証する

@@ -189,6 +189,18 @@ class PostControllerTest {
     }
 
     @Test
+    void list_投稿が0件でも200で空配列が返る() throws Exception {
+        // postIdsが空のままpostImageMapper.findByPostIdsを呼ぶと、生成されるSQLのIN (...)が
+        // 空になり構文エラーになる不具合の再発防止テスト（投稿0件のタイムラインで毎回発生しうる）
+        Cookie accessToken = registerAndLogin("taro", "list-empty@example.com");
+
+        mockMvc.perform(get("/api/posts").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts").isArray())
+                .andExpect(jsonPath("$.posts").isEmpty());
+    }
+
+    @Test
     void list_beforeIdで指定したidより古い投稿だけ取得できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "list-before@example.com");
         mockMvc.perform(createPostRequest("1件目").cookie(accessToken));
