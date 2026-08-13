@@ -7,7 +7,7 @@ import { PostItem } from './PostItem';
 interface PostDetailViewProps {
   post: Post;
   onBack: () => void;
-  onEdit: (postId: number, content: string) => Promise<boolean>;
+  onEdit: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDelete: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
   isTogglingLike: boolean;

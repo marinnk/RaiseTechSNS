@@ -1,19 +1,23 @@
 package com.raisetechsns.backend.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.CreatePostRequest;
@@ -56,18 +60,27 @@ public class PostController {
         };
     }
 
-    @PostMapping
+    /**
+     * テキストと画像（任意、最大4枚）を1回の投稿操作でまとめて送信するため、テキストのみの
+     * 投稿でも{@code multipart/form-data}を使う。{@code data}パートにJSON形式の{@link CreatePostRequest}、
+     * {@code images}パートに画像ファイル（0〜4枚）を積む。
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public PostResponse create(@Valid @RequestBody CreatePostRequest request, @AuthenticationPrincipal User user) {
-        return postService.create(request, user);
+    public PostResponse create(
+            @RequestPart("data") @Valid CreatePostRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @AuthenticationPrincipal User user) {
+        return postService.create(request, images, user);
     }
 
-    @PutMapping("/{postId}")
+    @PutMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public PostResponse update(
             @PathVariable Long postId,
-            @Valid @RequestBody UpdatePostRequest request,
+            @RequestPart("data") @Valid UpdatePostRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @AuthenticationPrincipal User user) {
-        return postService.update(postId, request, user);
+        return postService.update(postId, request, images, user);
     }
 
     @DeleteMapping("/{postId}")

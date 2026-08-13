@@ -20,7 +20,7 @@ interface ProfileScreenProps {
   postsHasMore: boolean;
   postsLoadingMore: boolean;
   onLoadMorePosts: () => void;
-  onEditPost: (postId: number, content: string) => Promise<boolean>;
+  onEditPost: (postId: number, content: string, keepImageIds: number[], newImages: File[]) => Promise<boolean>;
   onDeletePost: (postId: number) => Promise<boolean>;
   onToggleLike: (post: Post) => void;
   isTogglingLike: (postId: number) => boolean;

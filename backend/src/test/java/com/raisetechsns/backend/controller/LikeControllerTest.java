@@ -1,6 +1,7 @@
 package com.raisetechsns.backend.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,12 +47,13 @@ class LikeControllerTest {
         return loginResult.getResponse().getCookie("access_token");
     }
 
+    // POST /api/posts はテキストと画像を1回の操作でまとめて送信する設計のため、
+    // テキストのみの投稿でもmultipart/form-dataを使う（dataパートにJSON形式のリクエストを積む）
     private int createPost(Cookie accessToken, String content) throws Exception {
-        var result = mockMvc.perform(post("/api/posts")
-                        .cookie(accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CreatePostRequest(content))))
-                .andReturn();
+        MockMultipartFile data = new MockMultipartFile(
+                "data", "", MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(new CreatePostRequest(content)));
+        var result = mockMvc.perform(multipart("/api/posts").file(data).cookie(accessToken)).andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asInt();
     }
 

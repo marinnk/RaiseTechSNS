@@ -5,8 +5,6 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -73,7 +71,7 @@ public class ProfileService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
         String newAvatarUrl = storageService.upload(AVATAR_FOLDER, file);
         userMapper.updateAvatarUrl(currentUser.getId(), newAvatarUrl);
-        deleteAfterCommit(existing.getAvatarUrl());
+        storageService.deleteAfterCommit(existing.getAvatarUrl());
         return getProfile(currentUser.getId(), currentUser.getId());
     }
 
@@ -87,31 +85,9 @@ public class ProfileService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
         if (existing.getAvatarUrl() != null) {
             userMapper.updateAvatarUrl(currentUser.getId(), null);
-            deleteAfterCommit(existing.getAvatarUrl());
+            storageService.deleteAfterCommit(existing.getAvatarUrl());
         }
         return getProfile(currentUser.getId(), currentUser.getId());
-    }
-
-    /**
-     * 現在のトランザクションがコミットされた後にS3の画像を削除する。{@code avatarUrl}が
-     * {@code null}の場合は何もしない（{@link StorageService#delete}自体もnullを許容するが、
-     * 無駄なコールバック登録を避けるためここでも早期リターンする）。
-     */
-    private void deleteAfterCommit(String avatarUrl) {
-        if (avatarUrl == null) {
-            return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            // トランザクション外から呼ばれることは通常無いが、保険として即時削除する
-            storageService.delete(avatarUrl);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                storageService.delete(avatarUrl);
-            }
-        });
     }
 
     /**

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from './client';
+import { apiGet, apiPostMultipart, apiPutMultipart, apiDelete } from './client';
 import type { Post, PostListResponse, CreatePostRequest, UpdatePostRequest } from '../types/post';
 
 interface FetchPostsParams {
@@ -23,9 +23,19 @@ export function fetchPosts({ limit, beforeId, afterId, userId, scope }: FetchPos
   return apiGet<PostListResponse>(`/api/posts${query ? `?${query}` : ''}`);
 }
 
-export const createPost = (payload: CreatePostRequest) => apiPost<Post>('/api/posts', payload);
+// バックエンドはテキストと画像を1回の操作でまとめて受け取るため、画像が無くてもmultipart送信する。
+// 'data'パートにJSON形式のリクエストを、'images'パートに画像ファイルをそれぞれ積む
+function toFormData(payload: CreatePostRequest | UpdatePostRequest, images: File[]): FormData {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  images.forEach((file) => formData.append('images', file));
+  return formData;
+}
 
-export const updatePost = (postId: number, payload: UpdatePostRequest) =>
-  apiPut<Post>(`/api/posts/${postId}`, payload);
+export const createPost = (payload: CreatePostRequest, images: File[] = []) =>
+  apiPostMultipart<Post>('/api/posts', toFormData(payload, images));
+
+export const updatePost = (postId: number, payload: UpdatePostRequest, images: File[] = []) =>
+  apiPutMultipart<Post>(`/api/posts/${postId}`, toFormData(payload, images));
 
 export const deletePost = (postId: number) => apiDelete(`/api/posts/${postId}`);

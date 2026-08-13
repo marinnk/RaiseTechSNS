@@ -3,21 +3,29 @@ package com.raisetechsns.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.raisetechsns.backend.dto.CreatePostRequest;
@@ -25,9 +33,12 @@ import com.raisetechsns.backend.dto.PostListResponse;
 import com.raisetechsns.backend.dto.PostResponse;
 import com.raisetechsns.backend.dto.UpdatePostRequest;
 import com.raisetechsns.backend.entity.Post;
+import com.raisetechsns.backend.entity.PostImage;
 import com.raisetechsns.backend.entity.PostWithAuthor;
 import com.raisetechsns.backend.entity.User;
+import com.raisetechsns.backend.mapper.PostImageMapper;
 import com.raisetechsns.backend.mapper.PostMapper;
+import com.raisetechsns.backend.storage.StorageService;
 
 @ExtendWith(MockitoExtension.class)
 class PostServiceTest {
@@ -35,8 +46,24 @@ class PostServiceTest {
     @Mock
     private PostMapper postMapper;
 
+    @Mock
+    private PostImageMapper postImageMapper;
+
+    // deleteAfterCommitはStorageServiceのdefaultメソッドのため、Mockitoの通常のモックだと
+    // 本体が実行されず素通りしてしまう。CALLS_REAL_METHODSにより、defaultメソッド（deleteAfterCommit）
+    // は実際のロジックを実行しつつ、抽象メソッド（upload・delete）は通常通りスタブ・検証できる
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
+    private StorageService storageService;
+
     @InjectMocks
     private PostService postService;
+
+    @BeforeEach
+    void setUp() {
+        // 画像を扱わないテストの大半で必要になる「画像は無い」という既定のスタブ
+        lenient().when(postImageMapper.findByPostId(anyLong())).thenReturn(List.of());
+        lenient().when(postImageMapper.findByPostIds(any())).thenReturn(List.of());
+    }
 
     private static User user(long id) {
         User user = new User();
@@ -67,6 +94,19 @@ class PostServiceTest {
         return post;
     }
 
+    private static PostImage postImage(long id, long postId, String imageUrl, int displayOrder) {
+        PostImage image = new PostImage();
+        image.setId(id);
+        image.setPostId(postId);
+        image.setImageUrl(imageUrl);
+        image.setDisplayOrder(displayOrder);
+        return image;
+    }
+
+    private static MultipartFile jpegFile(String name) {
+        return new MockMultipartFile("images", name, "image/jpeg", new byte[10]);
+    }
+
     @Test
     void create_有効な内容なら投稿を作成できる() {
         User currentUser = user(1L);
@@ -77,12 +117,65 @@ class PostServiceTest {
         }).when(postMapper).insert(any(Post.class));
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "こんにちは")));
 
-        PostResponse result = postService.create(new CreatePostRequest("こんにちは"), currentUser);
+        PostResponse result = postService.create(new CreatePostRequest("こんにちは"), List.of(), currentUser);
 
         assertThat(result.id()).isEqualTo(10L);
         assertThat(result.content()).isEqualTo("こんにちは");
         assertThat(result.isOwnedByMe()).isTrue();
         assertThat(result.avatarUrl()).isEqualTo("https://example.com/avatars/taro.jpg");
+        assertThat(result.images()).isEmpty();
+    }
+
+    @Test
+    void create_画像を添付すると表示順で保存されレスポンスに含まれる() {
+        User currentUser = user(1L);
+        doAnswer(invocation -> {
+            Post inserted = invocation.getArgument(0);
+            inserted.setId(10L);
+            return null;
+        }).when(postMapper).insert(any(Post.class));
+        MultipartFile image1 = jpegFile("a.jpg");
+        MultipartFile image2 = jpegFile("b.jpg");
+        when(storageService.upload("posts", image1)).thenReturn("https://example.com/posts/a.jpg");
+        when(storageService.upload("posts", image2)).thenReturn("https://example.com/posts/b.jpg");
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "画像付き投稿")));
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of(
+                postImage(1L, 10L, "https://example.com/posts/a.jpg", 0),
+                postImage(2L, 10L, "https://example.com/posts/b.jpg", 1)));
+
+        PostResponse result = postService.create(new CreatePostRequest("画像付き投稿"), List.of(image1, image2), currentUser);
+
+        verify(postImageMapper).insert(10L, "https://example.com/posts/a.jpg", 0);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/b.jpg", 1);
+        assertThat(result.images()).hasSize(2);
+        assertThat(result.images().get(0).imageUrl()).isEqualTo("https://example.com/posts/a.jpg");
+        assertThat(result.images().get(1).imageUrl()).isEqualTo("https://example.com/posts/b.jpg");
+    }
+
+    @Test
+    void create_画像が4枚を超えるとBAD_REQUESTになりアップロードしない() {
+        User currentUser = user(1L);
+        List<MultipartFile> images = List.of(
+                jpegFile("1.jpg"), jpegFile("2.jpg"), jpegFile("3.jpg"), jpegFile("4.jpg"), jpegFile("5.jpg"));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.create(new CreatePostRequest("投稿"), images, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(storageService, never()).upload(any(), any());
+        verify(postMapper, never()).insert(any());
+    }
+
+    @Test
+    void create_不正な形式の画像ならBAD_REQUESTになる() {
+        User currentUser = user(1L);
+        MultipartFile textFile = new MockMultipartFile("images", "note.txt", "text/plain", new byte[10]);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.create(new CreatePostRequest("投稿"), List.of(textFile), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(postMapper, never()).insert(any());
     }
 
     @Test
@@ -180,7 +273,8 @@ class PostServiceTest {
         when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
 
-        PostResponse result = postService.update(10L, new UpdatePostRequest("更新後"), currentUser);
+        PostResponse result = postService.update(
+                10L, new UpdatePostRequest("更新後", List.of()), List.of(), currentUser);
 
         assertThat(result.content()).isEqualTo("更新後");
     }
@@ -191,7 +285,7 @@ class PostServiceTest {
         when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> postService.update(10L, new UpdatePostRequest("更新後"), currentUser));
+                () -> postService.update(10L, new UpdatePostRequest("更新後", List.of()), List.of(), currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -202,9 +296,57 @@ class PostServiceTest {
         when(postMapper.findById(999L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> postService.update(999L, new UpdatePostRequest("更新後"), currentUser));
+                () -> postService.update(999L, new UpdatePostRequest("更新後", List.of()), List.of(), currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void update_keepImageIdsに存在しないidが含まれるとBAD_REQUESTになる() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postImageMapper.findByPostId(10L))
+                .thenReturn(List.of(postImage(1L, 10L, "https://example.com/posts/a.jpg", 0)));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.update(
+                        10L, new UpdatePostRequest("更新後", List.of(999L)), List.of(), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void update_残す枚数と新規枚数の合計が4枚を超えるとBAD_REQUESTになる() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        List<PostImage> existing = List.of(
+                postImage(1L, 10L, "url1", 0), postImage(2L, 10L, "url2", 1),
+                postImage(3L, 10L, "url3", 2), postImage(4L, 10L, "url4", 3));
+        when(postImageMapper.findByPostId(10L)).thenReturn(existing);
+        List<Long> keepAll = List.of(1L, 2L, 3L, 4L);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.update(
+                        10L, new UpdatePostRequest("更新後", keepAll), List.of(jpegFile("new.jpg")), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void update_残さなかった既存画像は削除される() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
+        PostImage kept = postImage(1L, 10L, "https://example.com/posts/keep.jpg", 0);
+        PostImage removed = postImage(2L, 10L, "https://example.com/posts/removed.jpg", 1);
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of(kept, removed));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
+
+        postService.update(10L, new UpdatePostRequest("更新後", List.of(1L)), List.of(), currentUser);
+
+        verify(postImageMapper).insert(10L, "https://example.com/posts/keep.jpg", 0);
+        verify(storageService).delete("https://example.com/posts/removed.jpg");
+        verify(storageService, never()).delete("https://example.com/posts/keep.jpg");
     }
 
     @Test
@@ -238,6 +380,19 @@ class PostServiceTest {
                 ResponseStatusException.class, () -> postService.delete(999L, currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void delete_投稿を削除すると添付画像も削除される() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postImageMapper.findByPostId(10L))
+                .thenReturn(List.of(postImage(1L, 10L, "https://example.com/posts/a.jpg", 0)));
+        when(postMapper.delete(10L, 1L)).thenReturn(1);
+
+        postService.delete(10L, currentUser);
+
+        verify(storageService).delete("https://example.com/posts/a.jpg");
     }
 
     @Test
