@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AvatarIcon } from './AvatarIcon';
 import { PostContentInput } from './PostContentInput';
 import { isValidPostContent } from '../utils/postContent';
 
@@ -22,11 +23,7 @@ export function CommentForm({ avatarUrl, onSubmit, submitting }: CommentFormProp
   return (
     <form className="comment-form" onSubmit={handleSubmit}>
       <div className="post-form-body">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="avatar-icon-sm" />
-        ) : (
-          <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-        )}
+        <AvatarIcon avatarUrl={avatarUrl} />
         <PostContentInput
           id="comment-form-content"
           value={content}

@@ -8,6 +8,7 @@ import { usePosts } from '../hooks/usePosts';
 import { useProfile } from '../hooks/useProfile';
 import { useUserPosts } from '../hooks/useUserPosts';
 import type { AuthUser } from '../types/auth';
+import { AvatarIcon } from './AvatarIcon';
 import { NewPostsBanner } from './NewPostsBanner';
 import { PostDetailView } from './PostDetailView';
 import { PostForm } from './PostForm';
@@ -211,11 +212,7 @@ export function TimelineScreen({
             className="link-button timeline-header-user"
             onClick={() => openProfile(currentUser.id)}
           >
-            {currentUser.avatarUrl ? (
-              <img src={currentUser.avatarUrl} alt="" className="avatar-icon-sm" />
-            ) : (
-              <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-            )}
+            <AvatarIcon avatarUrl={currentUser.avatarUrl} />
             {currentUser.displayName}
           </button>
           <button type="button" className="link-button" onClick={onLogout} disabled={logoutSubmitting}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Post } from '../types/post';
 import { formatDate } from '../utils/formatDate';
+import { AvatarIcon } from './AvatarIcon';
 import { Modal } from './Modal';
 import { PostEditForm } from './PostEditForm';
 
@@ -34,12 +35,6 @@ export function PostItem({
 
   const closeModal = () => setModalMode('none');
 
-  const avatarIcon = post.avatarUrl ? (
-    <img src={post.avatarUrl} alt="" className="avatar-icon-sm" />
-  ) : (
-    <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-  );
-
   const handleSave = async (content: string) => {
     setEditSubmitting(true);
     const ok = await onEdit(post.id, content);
@@ -59,12 +54,12 @@ export function PostItem({
       <div className="post-item-header">
         {onOpenProfile ? (
           <button type="button" className="link-button post-author" onClick={() => onOpenProfile(post.userId)}>
-            {avatarIcon}
+            <AvatarIcon avatarUrl={post.avatarUrl} />
             {post.displayName}
           </button>
         ) : (
           <span className="post-author">
-            {avatarIcon}
+            <AvatarIcon avatarUrl={post.avatarUrl} />
             {post.displayName}
           </span>
         )}

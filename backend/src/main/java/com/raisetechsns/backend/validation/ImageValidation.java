@@ -25,7 +25,12 @@ public final class ImageValidation {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "image must not be empty");
         }
-        if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
+        // file.getContentType()はクライアントがContent-Typeを送らなかった場合nullになりうる。
+        // ALLOWED_CONTENT_TYPESはSet.of(...)によるイミュータブルなSetで、containsにnullを渡すと
+        // （containsが値なしと判定するのではなく）NullPointerExceptionを投げてしまうため、
+        // 先にnullチェックする
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "image must be jpg or png");
         }
         if (file.getSize() > MAX_SIZE_BYTES) {

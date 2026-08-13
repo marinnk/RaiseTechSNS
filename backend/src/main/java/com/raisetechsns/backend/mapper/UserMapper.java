@@ -16,6 +16,15 @@ public interface UserMapper {
 
     Optional<User> findById(@Param("id") Long id);
 
+    /**
+     * {@code findById}と同じだが、行ロック（{@code SELECT ... FOR UPDATE}）を取得したうえで返す。
+     * アバター画像の登録・削除のように「今の値を読んでから、それを踏まえて更新・削除する」処理で、
+     * 同一利用者に対する同時リクエストが競合しないよう直列化するために使う。
+     * 呼び出し元は必ず{@code @Transactional}なメソッド内で使うこと（トランザクションが終わるまで
+     * ロックが保持される）。
+     */
+    Optional<User> findByIdForUpdate(@Param("id") Long id);
+
     Optional<User> findByEmail(@Param("email") String email);
 
     boolean existsByEmail(@Param("email") String email);

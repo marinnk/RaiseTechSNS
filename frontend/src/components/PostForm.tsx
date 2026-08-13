@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AvatarIcon } from './AvatarIcon';
 import { PostContentInput } from './PostContentInput';
 import { isValidPostContent } from '../utils/postContent';
 
@@ -25,11 +26,7 @@ export function PostForm({ avatarUrl, onSubmit, submitting, onOpenProfile }: Pos
     <form className="post-form" onSubmit={handleSubmit}>
       <div className="post-form-body">
         <button type="button" className="avatar-icon-button" onClick={onOpenProfile} aria-label="自分のプロフィールを表示">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="avatar-icon-sm" />
-          ) : (
-            <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-          )}
+          <AvatarIcon avatarUrl={avatarUrl} />
         </button>
         <PostContentInput id="post-form-content" value={content} onChange={setContent} disabled={submitting} />
       </div>
