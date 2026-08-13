@@ -34,6 +34,12 @@ export function PostItem({
 
   const closeModal = () => setModalMode('none');
 
+  const avatarIcon = post.avatarUrl ? (
+    <img src={post.avatarUrl} alt="" className="avatar-icon-sm" />
+  ) : (
+    <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+  );
+
   const handleSave = async (content: string) => {
     setEditSubmitting(true);
     const ok = await onEdit(post.id, content);
@@ -51,17 +57,16 @@ export function PostItem({
   return (
     <article className="post-item">
       <div className="post-item-header">
-        {post.avatarUrl ? (
-          <img src={post.avatarUrl} alt="" className="avatar-icon-sm" />
-        ) : (
-          <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-        )}
         {onOpenProfile ? (
           <button type="button" className="link-button post-author" onClick={() => onOpenProfile(post.userId)}>
+            {avatarIcon}
             {post.displayName}
           </button>
         ) : (
-          <span className="post-author">{post.displayName}</span>
+          <span className="post-author">
+            {avatarIcon}
+            {post.displayName}
+          </span>
         )}
         <time className="post-date" dateTime={post.createdAt}>
           {formatDate(post.createdAt)}

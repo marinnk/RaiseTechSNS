@@ -8,20 +8,25 @@ interface CommentItemProps {
 }
 
 export function CommentItem({ comment, onDelete, deleting, onOpenProfile }: CommentItemProps) {
+  const avatarIcon = comment.avatarUrl ? (
+    <img src={comment.avatarUrl} alt="" className="avatar-icon-sm" />
+  ) : (
+    <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+  );
+
   return (
     <article className="comment-item">
       <div className="comment-item-header">
-        {comment.avatarUrl ? (
-          <img src={comment.avatarUrl} alt="" className="avatar-icon-sm" />
-        ) : (
-          <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
-        )}
         {onOpenProfile ? (
           <button type="button" className="link-button comment-author" onClick={() => onOpenProfile(comment.userId)}>
+            {avatarIcon}
             {comment.displayName}
           </button>
         ) : (
-          <span className="comment-author">{comment.displayName}</span>
+          <span className="comment-author">
+            {avatarIcon}
+            {comment.displayName}
+          </span>
         )}
         {comment.isOwnedByMe && (
           <button

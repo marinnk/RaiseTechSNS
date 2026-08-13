@@ -758,7 +758,16 @@ describe('TimelineScreen', () => {
         'GET /api/posts?limit=20': () => ({
           status: 200,
           body: {
-            posts: [post({ id: 1, userId: 2, username: 'jiro', displayName: '次郎', isOwnedByMe: false })],
+            posts: [
+              post({
+                id: 1,
+                userId: 2,
+                username: 'jiro',
+                displayName: '次郎',
+                avatarUrl: 'https://example.com/avatars/jiro.jpg',
+                isOwnedByMe: false,
+              }),
+            ],
             hasMore: false,
           },
         }),
@@ -777,7 +786,10 @@ describe('TimelineScreen', () => {
     );
     await screen.findByText('次郎');
 
-    await user.click(screen.getByRole('button', { name: '次郎' }));
+    // アイコンも投稿者名と同じボタンの中にあり、クリックでプロフィールへ遷移できる
+    const authorButton = screen.getByRole('button', { name: '次郎' });
+    expect(authorButton.querySelector('img')).toHaveAttribute('src', 'https://example.com/avatars/jiro.jpg');
+    await user.click(authorButton);
 
     expect(await screen.findByText('@jiro')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'フォローする' })).toBeInTheDocument();
@@ -867,7 +879,17 @@ describe('TimelineScreen', () => {
         'GET /api/posts?limit=20&userId=2': () => ({ status: 200, body: { posts: [], hasMore: false } }),
         'GET /api/users/2/following': () => ({
           status: 200,
-          body: { users: [{ id: 3, username: 'saburo', displayName: '三郎', avatarUrl: null, followedByMe: false }] },
+          body: {
+            users: [
+              {
+                id: 3,
+                username: 'saburo',
+                displayName: '三郎',
+                avatarUrl: 'https://example.com/avatars/saburo.jpg',
+                followedByMe: false,
+              },
+            ],
+          },
         }),
       }),
     );
@@ -888,6 +910,8 @@ describe('TimelineScreen', () => {
 
     expect(await screen.findByText('三郎')).toBeInTheDocument();
     expect(screen.getByText('@saburo')).toBeInTheDocument();
+    const avatarImg = document.querySelector<HTMLImageElement>('.follow-list img');
+    expect(avatarImg).toHaveAttribute('src', 'https://example.com/avatars/saburo.jpg');
   });
 
   it('プロフィール編集で自己紹介を保存すると反映される', async () => {

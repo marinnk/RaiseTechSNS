@@ -27,6 +27,11 @@ export function FollowListPanel({ type, users, loading, onSelectUser }: FollowLi
           {users.map((user) => (
             <li key={user.id}>
               <button type="button" className="follow-list-item" onClick={() => onSelectUser(user.id)}>
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" className="avatar-icon-sm" />
+                ) : (
+                  <span className="avatar-icon-sm avatar-icon-placeholder" aria-hidden="true" />
+                )}
                 <span className="follow-list-display-name">{user.displayName}</span>
                 <span className="follow-list-username">@{user.username}</span>
               </button>

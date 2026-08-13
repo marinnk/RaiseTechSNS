@@ -293,6 +293,9 @@ body {
 }
 
 .post-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: bold;
 }
 
@@ -401,6 +404,9 @@ body {
 }
 
 .comment-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: bold;
 }
 
@@ -561,7 +567,7 @@ body {
 
 .follow-list-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   width: 100%;
   border: none;
