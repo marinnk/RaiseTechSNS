@@ -103,6 +103,14 @@ class FollowControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void follow_userIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "follow-badid@example.com");
+
+        mockMvc.perform(post("/api/users/abc/follow").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void unfollow_フォローを解除するとfollowerCountが減りfollowedByMeがfalseになる() throws Exception {
         Cookie tarosCookie = registerAndLogin("taro", "unfollow-ok-taro@example.com");
         Cookie jirosCookie = registerAndLogin("jiro", "unfollow-ok-jiro@example.com");
@@ -124,6 +132,25 @@ class FollowControllerTest extends AbstractIntegrationTest {
         mockMvc.perform(delete("/api/users/" + jiroId + "/follow").cookie(tarosCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.followerCount").value(0));
+    }
+
+    @Test
+    void unfollow_未ログインなら401になる() throws Exception {
+        Cookie jirosCookie = registerAndLogin("jiro", "unfollow-unauth-jiro@example.com");
+        int jiroId = currentUserId(jirosCookie);
+
+        mockMvc.perform(delete("/api/users/" + jiroId + "/follow"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unfollow_存在しない利用者を解除しようとすると404になる() throws Exception {
+        // unfollowはfollowと違いDELETE前の存在確認を行わないが、その後currentStateの
+        // findByIdWithStatsが対象の不在を検知して404にする
+        Cookie accessToken = registerAndLogin("taro", "unfollow-404@example.com");
+
+        mockMvc.perform(delete("/api/users/999999/follow").cookie(accessToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -161,5 +188,30 @@ class FollowControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/users/" + jiroId + "/followers"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void followers_存在しない利用者なら404になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "followers-404@example.com");
+
+        mockMvc.perform(get("/api/users/999999/followers").cookie(accessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void following_未ログインなら401になる() throws Exception {
+        Cookie jirosCookie = registerAndLogin("jiro", "following-unauth-jiro@example.com");
+        int jiroId = currentUserId(jirosCookie);
+
+        mockMvc.perform(get("/api/users/" + jiroId + "/following"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void following_存在しない利用者なら404になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "following-404@example.com");
+
+        mockMvc.perform(get("/api/users/999999/following").cookie(accessToken))
+                .andExpect(status().isNotFound());
     }
 }

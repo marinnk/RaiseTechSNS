@@ -112,6 +112,24 @@ class CommentServiceTest {
     }
 
     @Test
+    void create_挿入後に取得できなければINTERNAL_SERVER_ERRORになる() {
+        // 挿入直後の再取得が空になるのは通常起こらないはずの防御的な分岐だが、
+        // 万一起きた場合に正しくINTERNAL_SERVER_ERRORとして扱われることを確認する
+        User currentUser = user(2L);
+        doAnswer(invocation -> {
+            Comment inserted = invocation.getArgument(0);
+            inserted.setId(10L);
+            return null;
+        }).when(commentMapper).insert(any(Comment.class));
+        when(commentMapper.findByIdWithAuthor(10L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> commentService.create(1L, new CreateCommentRequest("こんにちは"), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
     void create_投稿が存在しなければNOT_FOUNDになる() {
         User currentUser = user(2L);
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "post not found"))
@@ -132,6 +150,20 @@ class CommentServiceTest {
         commentService.delete(10L, currentUser);
 
         // 例外が発生しなければ成功
+    }
+
+    @Test
+    void delete_所有者チェック後にdeleteが0件ならNOT_FOUNDになる() {
+        // 所有者チェック（findById）は通過したが、その後のdelete自体は0件だった
+        // （チェックと削除の間に他から削除された等の競合）場合の防御的な分岐
+        User currentUser = user(2L);
+        when(commentMapper.findById(10L)).thenReturn(Optional.of(comment(10L, 1L, 2L)));
+        when(commentMapper.delete(10L, 2L)).thenReturn(0);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> commentService.delete(10L, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test

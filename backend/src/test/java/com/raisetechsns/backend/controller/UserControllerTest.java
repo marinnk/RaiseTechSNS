@@ -107,6 +107,14 @@ class UserControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void get_userIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "profile-badid@example.com");
+
+        mockMvc.perform(get("/api/users/abc").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void updateMe_自己紹介を更新できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "profile-update-ok@example.com");
 
@@ -152,6 +160,17 @@ class UserControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void updateMe_不正な形式のJSONを送ると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "profile-update-badjson@example.com");
+
+        mockMvc.perform(put("/api/users/me")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void uploadAvatar_画像をアップロードするとavatarUrlが返る() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "avatar-upload-ok@example.com");
         when(storageService.upload(eq("avatars"), any())).thenReturn("https://example.com/avatars/x.jpg");
@@ -176,6 +195,24 @@ class UserControllerTest extends AbstractIntegrationTest {
         MockMultipartFile file = new MockMultipartFile("file", "note.txt", "text/plain", new byte[10]);
 
         mockMvc.perform(multipart("/api/users/me/avatar").file(file).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadAvatar_5MBを超えると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "avatar-upload-oversized@example.com");
+        MockMultipartFile tooLarge = new MockMultipartFile(
+                "file", "avatar.jpg", "image/jpeg", new byte[5 * 1024 * 1024 + 1]);
+
+        mockMvc.perform(multipart("/api/users/me/avatar").file(tooLarge).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadAvatar_fileパートが無いと400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "avatar-upload-missing-file@example.com");
+
+        mockMvc.perform(multipart("/api/users/me/avatar").cookie(accessToken))
                 .andExpect(status().isBadRequest());
     }
 
@@ -229,5 +266,15 @@ class UserControllerTest extends AbstractIntegrationTest {
     void search_未認証なら401になる() throws Exception {
         mockMvc.perform(get("/api/users").param("q", "taro"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void search_qパラメータが無い場合は400になる() throws Exception {
+        // qが空白文字（search_キーワードが空文字なら400になる）とは別の経路
+        // （MissingServletRequestParameterException）を確認する
+        Cookie accessToken = registerAndLogin("taro", "search-missing-param@example.com");
+
+        mockMvc.perform(get("/api/users").cookie(accessToken))
+                .andExpect(status().isBadRequest());
     }
 }

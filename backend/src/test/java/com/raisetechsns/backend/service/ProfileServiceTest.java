@@ -121,6 +121,42 @@ class ProfileServiceTest {
     }
 
     @Test
+    void updateBio_更新後にプロフィールが取得できなければNOT_FOUNDになる() {
+        // 認証からこの呼び出しまでの間に利用者自身が削除された等の防御的な分岐
+        User currentUser = user(1L);
+        when(userMapper.findByIdWithStats(1L, 1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> profileService.updateBio(new UpdateProfileRequest("自己紹介"), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void uploadAvatar_利用者が存在しなければNOT_FOUNDになる() {
+        User currentUser = user(1L);
+        when(userMapper.findByIdForUpdate(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> profileService.uploadAvatar(jpegFile("avatar.jpg", new byte[100]), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void uploadAvatar_ちょうど5MBならアップロードできる() {
+        // 上限5MBちょうどの境界値（5MB超過はBAD_REQUESTになることは別テストで確認済み）
+        User currentUser = user(1L);
+        when(userMapper.findByIdForUpdate(1L)).thenReturn(Optional.of(user(1L, null)));
+        when(storageService.upload(eq("avatars"), any())).thenReturn("https://example.com/avatars/new.jpg");
+        when(userMapper.findByIdWithStats(1L, 1L)).thenReturn(Optional.of(row(1L, null, 0L, 0L, false)));
+
+        profileService.uploadAvatar(jpegFile("avatar.jpg", new byte[5 * 1024 * 1024]), currentUser);
+
+        verify(userMapper).updateAvatarUrl(1L, "https://example.com/avatars/new.jpg");
+    }
+
+    @Test
     void uploadAvatar_新しい画像をアップロードするとavatarUrlが更新される() {
         User currentUser = user(1L);
         when(userMapper.findByIdForUpdate(1L)).thenReturn(Optional.of(user(1L, null)));
@@ -206,6 +242,17 @@ class ProfileServiceTest {
     }
 
     @Test
+    void deleteAvatar_利用者が存在しなければNOT_FOUNDになる() {
+        User currentUser = user(1L);
+        when(userMapper.findByIdForUpdate(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> profileService.deleteAvatar(currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void deleteAvatar_画像がある場合は削除してavatarUrlをnullにする() {
         User currentUser = user(1L);
         when(userMapper.findByIdForUpdate(1L)).thenReturn(Optional.of(user(1L, "https://example.com/avatars/old.jpg")));
@@ -259,6 +306,16 @@ class ProfileServiceTest {
     void searchUsers_空文字ならBAD_REQUESTになりマッパーを呼ばない() {
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> profileService.searchUsers("   ", 1L));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(userMapper, never()).searchByKeyword(any(), any());
+    }
+
+    @Test
+    void searchUsers_キーワードがnullならBAD_REQUESTになる() {
+        // Controllerからqパラメータ自体が渡らなかった場合を想定した、空白文字列とは別の同値クラス
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> profileService.searchUsers(null, 1L));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(userMapper, never()).searchByKeyword(any(), any());

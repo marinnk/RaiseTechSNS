@@ -71,10 +71,33 @@ class AuthControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void register_ユーザー名が重複していると409になる() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody("dup-username", "dup-username-1@example.com", "password1")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody("dup-username", "dup-username-2@example.com", "password1")))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void register_バリデーションエラーの場合は400になる() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerBody("", "not-an-email", "short")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void register_不正な形式のJSONを送ると400になる() throws Exception {
+        // GlobalExceptionHandlerにHttpMessageNotReadableExceptionのハンドラーが無いと、
+        // 400ではなく500になってしまう不具合の再発防止テスト
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -106,8 +129,24 @@ class AuthControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void login_不正な形式のJSONを送ると400になる() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void me_未ログインだと401になる() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void me_不正なaccess_tokenのCookieだと401になる() throws Exception {
+        // Cookie自体は無いが未ログイン扱いになるme_未ログインだと401になるとは別の経路
+        // （JwtAuthenticationFilterがJWTの検証に失敗して未認証として扱う経路）を確認する
+        mockMvc.perform(get("/api/auth/me").cookie(new Cookie("access_token", "tampered-or-invalid-token")))
                 .andExpect(status().isUnauthorized());
     }
 

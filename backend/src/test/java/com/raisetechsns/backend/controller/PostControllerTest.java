@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -195,6 +196,57 @@ class PostControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void create_画像がちょうど4枚なら作成できる() throws Exception {
+        // 上限4枚ちょうどの境界値（5枚はBAD_REQUESTになることは別テストで確認済み）
+        Cookie accessToken = registerAndLogin("taro", "create-four-images@example.com");
+        when(storageService.upload(eq("posts"), any())).thenReturn("https://example.com/posts/x.jpg");
+
+        mockMvc.perform(createPostRequest("投稿",
+                        jpegImage("1.jpg"), jpegImage("2.jpg"), jpegImage("3.jpg"), jpegImage("4.jpg"))
+                        .cookie(accessToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.images.length()").value(4));
+    }
+
+    @Test
+    void create_本文が280文字ちょうどなら作成できる() throws Exception {
+        // 上限280文字ちょうどの境界値（281文字はBAD_REQUESTになることは別テストで確認済み）
+        Cookie accessToken = registerAndLogin("taro", "create-boundary-content@example.com");
+        String exactly280 = "あ".repeat(280);
+
+        mockMvc.perform(createPostRequest(exactly280).cookie(accessToken))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void create_dataパートが無いと400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "create-missing-data@example.com");
+
+        mockMvc.perform(multipart("/api/posts").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void create_dataパートが不正なJSONだと400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "create-bad-json-data@example.com");
+        MockMultipartFile badData = new MockMultipartFile(
+                "data", "", MediaType.APPLICATION_JSON_VALUE, "{not-json".getBytes());
+
+        mockMvc.perform(multipart("/api/posts").file(badData).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void create_画像が5MBを超えると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "create-oversized-image@example.com");
+        MockMultipartFile tooLarge = new MockMultipartFile(
+                "images", "big.jpg", "image/jpeg", new byte[5 * 1024 * 1024 + 1]);
+
+        mockMvc.perform(createPostRequest("投稿", tooLarge).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void list_投稿一覧を新しい順に取得できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "list-order@example.com");
         mockMvc.perform(createPostRequest("1件目").cookie(accessToken));
@@ -204,6 +256,12 @@ class PostControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.posts[0].content").value("2件目"))
                 .andExpect(jsonPath("$.posts[1].content").value("1件目"));
+    }
+
+    @Test
+    void list_未ログインなら401になる() throws Exception {
+        mockMvc.perform(get("/api/posts"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -324,6 +382,44 @@ class PostControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void list_beforeIdとafterIdを同時に指定すると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-both-cursor@example.com");
+
+        mockMvc.perform(get("/api/posts").param("beforeId", "1").param("afterId", "1").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_beforeIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-badid@example.com");
+
+        mockMvc.perform(get("/api/posts").param("beforeId", "abc").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_limitが0以下でも例外にならず動作する() throws Exception {
+        // limitの厳密な丸め値（1・50への切り上げ/切り下げ）はPostServiceTestで単体検証済みのため、
+        // ここでは異常値を渡してもエンドポイントとして例外にならないことだけを確認する
+        Cookie accessToken = registerAndLogin("taro", "list-limit-low@example.com");
+        mockMvc.perform(createPostRequest("投稿").cookie(accessToken));
+
+        mockMvc.perform(get("/api/posts").param("limit", "0").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(1));
+    }
+
+    @Test
+    void list_limitが50を超えても例外にならず動作する() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "list-limit-high@example.com");
+        mockMvc.perform(createPostRequest("投稿").cookie(accessToken));
+
+        mockMvc.perform(get("/api/posts").param("limit", "1000").cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts.length()").value(1));
+    }
+
+    @Test
     void update_自分の投稿を編集できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "update-ok@example.com");
         var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
@@ -379,6 +475,77 @@ class PostControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void update_未ログインなら401になる() throws Exception {
+        // 認証はSpring Securityのフィルターでコントローラーより前に判定されるため、
+        // 投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
+        mockMvc.perform(updatePostRequest(999999, "編集後", List.of()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void update_存在しない投稿なら404になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "update-404@example.com");
+
+        mockMvc.perform(updatePostRequest(999999, "編集後", List.of()).cookie(accessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_本文が空なら400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "update-blank@example.com");
+        var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+
+        mockMvc.perform(updatePostRequest(postId, "", List.of()).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_本文が281文字以上なら400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "update-toolong@example.com");
+        var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+        String tooLong = "あ".repeat(281);
+
+        mockMvc.perform(updatePostRequest(postId, tooLong, List.of()).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_application_jsonで送ると415になる() throws Exception {
+        // Content-Typeの不一致はSpring MVCのコンテンツネゴシエーションでコントローラーより前に
+        // 判定されるため、投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
+        Cookie accessToken = registerAndLogin("taro", "update-wrong-content-type@example.com");
+
+        mockMvc.perform(put("/api/posts/999999")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdatePostRequest("編集後", List.of()))))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    void update_keepImageIdsに存在しない画像idが含まれると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "update-unknown-keep-id@example.com");
+        var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+
+        mockMvc.perform(updatePostRequest(postId, "編集後", List.of(999999L)).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_jpg_png以外の画像を追加すると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "update-bad-image-type@example.com");
+        var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
+        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
+        MockMultipartFile textFile = new MockMultipartFile("images", "note.txt", "text/plain", new byte[10]);
+
+        mockMvc.perform(updatePostRequest(postId, "編集後", List.of(), textFile).cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void delete_自分の投稿を削除できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "delete-ok@example.com");
         var created = mockMvc.perform(createPostRequest("削除される投稿").cookie(accessToken)).andReturn();
@@ -411,6 +578,20 @@ class PostControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(delete("/api/posts/" + postId).cookie(otherCookie))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void delete_未ログインなら401になる() throws Exception {
+        mockMvc.perform(delete("/api/posts/999999"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void delete_存在しない投稿なら404になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "delete-404@example.com");
+
+        mockMvc.perform(delete("/api/posts/999999").cookie(accessToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test
