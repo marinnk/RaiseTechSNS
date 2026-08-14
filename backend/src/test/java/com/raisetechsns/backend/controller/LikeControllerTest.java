@@ -20,13 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.raisetechsns.backend.dto.CreatePostRequest;
 import com.raisetechsns.backend.dto.LoginRequest;
 import com.raisetechsns.backend.dto.RegisterRequest;
+import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class LikeControllerTest {
+class LikeControllerTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
