@@ -1,6 +1,7 @@
 package com.raisetechsns.backend.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.raisetechsns.backend.entity.Comment;
 import com.raisetechsns.backend.entity.Post;
 import com.raisetechsns.backend.entity.PostWithAuthor;
-import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 /**
@@ -29,9 +29,6 @@ class PostMapperTest extends AbstractIntegrationTest {
     private PostMapper postMapper;
 
     @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
     private LikeMapper likeMapper;
 
     @Autowired
@@ -39,24 +36,6 @@ class PostMapperTest extends AbstractIntegrationTest {
 
     @Autowired
     private FollowMapper followMapper;
-
-    private Long insertUser(String username) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(username + "@example.com");
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        userMapper.insert(user);
-        return user.getId();
-    }
-
-    private Long insertPost(Long userId, String content) {
-        Post post = new Post();
-        post.setUserId(userId);
-        post.setContent(content);
-        postMapper.insert(post);
-        return post.getId();
-    }
 
     @Test
     void insert_採番されたidがpostに反映される() {
@@ -107,16 +86,12 @@ class PostMapperTest extends AbstractIntegrationTest {
 
         List<PostWithAuthor> result = postMapper.findAllWithAuthor(10, null, liker, null, false);
 
-        PostWithAuthor target = result.stream().filter(p -> p.getPostId().equals(postId)).findFirst().orElseThrow();
-        assertThat(target.getLikeCount()).isEqualTo(2);
-        assertThat(target.getCommentCount()).isEqualTo(1);
-        assertThat(target.isLikedByMe()).isTrue();
-
-        PostWithAuthor other = result.stream().filter(p -> p.getPostId().equals(otherPostId)).findFirst()
-                .orElseThrow();
-        assertThat(other.getLikeCount()).isZero();
-        assertThat(other.getCommentCount()).isZero();
-        assertThat(other.isLikedByMe()).isFalse();
+        assertThat(result).filteredOn(p -> p.getPostId().equals(postId))
+                .extracting(PostWithAuthor::getLikeCount, PostWithAuthor::getCommentCount, PostWithAuthor::isLikedByMe)
+                .containsExactly(tuple(2L, 1L, true));
+        assertThat(result).filteredOn(p -> p.getPostId().equals(otherPostId))
+                .extracting(PostWithAuthor::getLikeCount, PostWithAuthor::getCommentCount, PostWithAuthor::isLikedByMe)
+                .containsExactly(tuple(0L, 0L, false));
     }
 
     @Test

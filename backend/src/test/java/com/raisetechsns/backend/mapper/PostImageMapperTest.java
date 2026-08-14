@@ -11,9 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.raisetechsns.backend.entity.Post;
 import com.raisetechsns.backend.entity.PostImage;
-import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 /**
@@ -26,25 +24,8 @@ class PostImageMapperTest extends AbstractIntegrationTest {
     @Autowired
     private PostImageMapper postImageMapper;
 
-    @Autowired
-    private PostMapper postMapper;
-
-    @Autowired
-    private UserMapper userMapper;
-
     private Long insertPost(String username) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(username + "@example.com");
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        userMapper.insert(user);
-
-        Post post = new Post();
-        post.setUserId(user.getId());
-        post.setContent("本文");
-        postMapper.insert(post);
-        return post.getId();
+        return insertPost(insertUser(username), "本文");
     }
 
     @Test
@@ -82,7 +63,8 @@ class PostImageMapperTest extends AbstractIntegrationTest {
         // マッパーを呼ばずMap.of()を使う、というガードを入れている理由そのものであり、
         // モックしたテストでは絶対に発見できない実DBならではの挙動である。
         assertThatThrownBy(() -> postImageMapper.findByPostIds(List.of()))
-                .isInstanceOf(DataAccessException.class);
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("syntax error");
     }
 
     @Test

@@ -8,8 +8,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.raisetechsns.backend.entity.Post;
-import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 /**
@@ -28,31 +26,7 @@ class LikeMapperTest extends AbstractIntegrationTest {
     private LikeMapper likeMapper;
 
     @Autowired
-    private PostMapper postMapper;
-
-    @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    private Long insertUser(String username) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(username + "@example.com");
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        userMapper.insert(user);
-        return user.getId();
-    }
-
-    private Long insertPost(Long userId) {
-        Post post = new Post();
-        post.setUserId(userId);
-        post.setContent("本文");
-        postMapper.insert(post);
-        return post.getId();
-    }
 
     private int countLikes(Long postId, Long userId) {
         Integer count = jdbcTemplate.queryForObject(
@@ -63,7 +37,7 @@ class LikeMapperTest extends AbstractIntegrationTest {
     @Test
     void insertIgnoreConflict_新規のいいねを登録できる() {
         Long userId = insertUser("taro");
-        Long postId = insertPost(userId);
+        Long postId = insertPost(userId, "本文");
 
         likeMapper.insertIgnoreConflict(postId, userId);
 
@@ -73,7 +47,7 @@ class LikeMapperTest extends AbstractIntegrationTest {
     @Test
     void insertIgnoreConflict_同じ組み合わせを2回呼んでも例外にならず重複行は作られない() {
         Long userId = insertUser("taro");
-        Long postId = insertPost(userId);
+        Long postId = insertPost(userId, "本文");
 
         likeMapper.insertIgnoreConflict(postId, userId);
         likeMapper.insertIgnoreConflict(postId, userId);
@@ -84,7 +58,7 @@ class LikeMapperTest extends AbstractIntegrationTest {
     @Test
     void delete_いいねを取り消せる() {
         Long userId = insertUser("taro");
-        Long postId = insertPost(userId);
+        Long postId = insertPost(userId, "本文");
         likeMapper.insertIgnoreConflict(postId, userId);
 
         int deleted = likeMapper.delete(postId, userId);
@@ -96,7 +70,7 @@ class LikeMapperTest extends AbstractIntegrationTest {
     @Test
     void delete_いいねしていない状態で削除しても例外にならず0件() {
         Long userId = insertUser("taro");
-        Long postId = insertPost(userId);
+        Long postId = insertPost(userId, "本文");
 
         int deleted = likeMapper.delete(postId, userId);
 

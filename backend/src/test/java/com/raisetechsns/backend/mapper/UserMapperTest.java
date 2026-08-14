@@ -30,24 +30,15 @@ class UserMapperTest extends AbstractIntegrationTest {
     @Autowired
     private FollowMapper followMapper;
 
-    private static User newUser(String username, String email) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        return user;
-    }
-
-    private Long insertUser(String username, String email) {
-        User user = newUser(username, email);
-        userMapper.insert(user);
-        return user.getId();
-    }
-
     @Test
     void insert_採番されたidがuserに反映される() {
-        User user = newUser("taro", "taro@example.com");
+        // insertUser()（AbstractIntegrationTest）は登録済みのidだけを返すため、
+        // insert自体を検証するこのテストだけはUserを自前で組み立てる
+        User user = new User();
+        user.setUsername("taro");
+        user.setEmail("taro@example.com");
+        user.setPasswordHash("hashed-password");
+        user.setDisplayName("太郎");
 
         userMapper.insert(user);
 
@@ -56,7 +47,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void findByEmail_一致するメールアドレスなら取得できる() {
-        insertUser("taro", "taro@example.com");
+        insertUser("taro");
 
         Optional<User> found = userMapper.findByEmail("taro@example.com");
 
@@ -73,7 +64,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void existsByEmail_登録済みならtrue_未登録ならfalse() {
-        insertUser("taro", "taro@example.com");
+        insertUser("taro");
 
         assertThat(userMapper.existsByEmail("taro@example.com")).isTrue();
         assertThat(userMapper.existsByEmail("nobody@example.com")).isFalse();
@@ -81,7 +72,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void existsByUsername_登録済みならtrue_未登録ならfalse() {
-        insertUser("taro", "taro@example.com");
+        insertUser("taro");
 
         assertThat(userMapper.existsByUsername("taro")).isTrue();
         assertThat(userMapper.existsByUsername("nobody")).isFalse();
@@ -89,7 +80,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void findByIdForUpdate_FOR_UPDATE付きでも例外にならず取得できる() {
-        Long userId = insertUser("taro", "taro@example.com");
+        Long userId = insertUser("taro");
 
         Optional<User> found = userMapper.findByIdForUpdate(userId);
 
@@ -99,8 +90,8 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void findByIdWithStats_フォロワーもフォロー中も0件ならfollowedByMeもfalse() {
-        Long targetId = insertUser("taro", "taro@example.com");
-        Long viewerId = insertUser("jiro", "jiro@example.com");
+        Long targetId = insertUser("taro");
+        Long viewerId = insertUser("jiro");
 
         UserWithStats stats = userMapper.findByIdWithStats(targetId, viewerId).orElseThrow();
 
@@ -111,9 +102,9 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void findByIdWithStats_フォロワー複数件_フォロー済みならtrue() {
-        Long targetId = insertUser("taro", "taro@example.com");
-        Long viewerId = insertUser("jiro", "jiro@example.com");
-        Long otherId = insertUser("saburo", "saburo@example.com");
+        Long targetId = insertUser("taro");
+        Long viewerId = insertUser("jiro");
+        Long otherId = insertUser("saburo");
         // targetをviewer・otherの2人がフォロー、targetはviewerを1人だけフォローしている状態を作る
         followMapper.insertIgnoreConflict(viewerId, targetId);
         followMapper.insertIgnoreConflict(otherId, targetId);
@@ -128,8 +119,8 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void searchByKeyword_大文字小文字が異なっても部分一致する() {
-        insertUser("TaroYamada", "taro-yamada@example.com");
-        Long viewerId = insertUser("viewer", "viewer@example.com");
+        insertUser("TaroYamada");
+        Long viewerId = insertUser("viewer");
 
         List<UserFollowSummary> results = userMapper.searchByKeyword("yamada", viewerId);
 
@@ -138,8 +129,8 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void searchByKeyword_一致しなければ空() {
-        insertUser("taro", "taro@example.com");
-        Long viewerId = insertUser("viewer", "viewer@example.com");
+        insertUser("taro");
+        Long viewerId = insertUser("viewer");
 
         List<UserFollowSummary> results = userMapper.searchByKeyword("nonexistent-keyword", viewerId);
 
@@ -148,9 +139,9 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void searchByKeyword_複数件ヒットする() {
-        insertUser("taro1", "taro1@example.com");
-        insertUser("taro2", "taro2@example.com");
-        Long viewerId = insertUser("viewer", "viewer@example.com");
+        insertUser("taro1");
+        insertUser("taro2");
+        Long viewerId = insertUser("viewer");
 
         List<UserFollowSummary> results = userMapper.searchByKeyword("taro", viewerId);
 
@@ -159,7 +150,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void updateBio_更新した内容がfindByIdで取得できる() {
-        Long userId = insertUser("taro", "taro@example.com");
+        Long userId = insertUser("taro");
 
         userMapper.updateBio(userId, "更新後のbio");
 
@@ -168,7 +159,7 @@ class UserMapperTest extends AbstractIntegrationTest {
 
     @Test
     void updateAvatarUrl_更新した内容がfindByIdで取得できる() {
-        Long userId = insertUser("taro", "taro@example.com");
+        Long userId = insertUser("taro");
 
         userMapper.updateAvatarUrl(userId, "https://example.com/avatar.png");
 

@@ -59,9 +59,9 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5173/
 
 ## バックエンドの統合テストとDBの関係
 
-`backend/src/test/java/com/raisetechsns/backend/`配下の`@SpringBootTest`系テスト（Controllerテスト・Mapperテスト等）は、`docker-compose.yml`の`db`サービス（開発用DB）には接続しない。テスト実行のたびにTestcontainersが使い捨てのPostgreSQLコンテナを自動起動し、そこにFlywayマイグレーションを適用して使うため、`./gradlew test`・`./gradlew check`の前に`docker compose up -d db`を実行しておく必要は無い。開発用DBが起動していてもいなくても、テストの結果もその中身も一切変わらない。
+`AbstractIntegrationTest`（`backend/src/test/java/com/raisetechsns/backend/support/`）を継承した`@SpringBootTest`系テスト（Controllerテスト・Mapperテスト等）は、`docker-compose.yml`の`db`サービス（開発用DB）には接続しない。テスト実行のたびにTestcontainersが使い捨てのPostgreSQLコンテナを自動起動し、そこにFlywayマイグレーションを適用して使うため、`./gradlew test`・`./gradlew check`の前に`docker compose up -d db`を実行しておく必要は無い。開発用DBが起動していてもいなくても、これらのテストの結果もその中身も一切変わらない。
 
-ただし、Testcontainersがコンテナを起動するためDockerデーモン自体は引き続き必須。
+ただし、Testcontainersがコンテナを起動するためDockerデーモン自体は引き続き必須。また、`AbstractIntegrationTest`を継承し忘れた新しい`@SpringBootTest`は自動的にはこの恩恵を受けられず、`application.properties`の設定に従って開発用DBへ接続してしまう点に注意（コンパイル・単体実行では気づきにくいので、DB接続が要る新しいテストクラスを追加するときは必ず継承すること）。
 
 ## サンドボックス環境等でDockerが使えない場合
 

@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.entity.UserFollowSummary;
 import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
@@ -27,19 +26,6 @@ class FollowMapperTest extends AbstractIntegrationTest {
 
     @Autowired
     private FollowMapper followMapper;
-
-    @Autowired
-    private UserMapper userMapper;
-
-    private Long insertUser(String username) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(username + "@example.com");
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        userMapper.insert(user);
-        return user.getId();
-    }
 
     @Test
     void insertIgnoreConflict_同じ組み合わせを2回呼んでも例外にならず重複行は作られない() {
@@ -57,10 +43,13 @@ class FollowMapperTest extends AbstractIntegrationTest {
         // ON CONFLICTはUNIQUE制約の重複だけを無視する仕組みで、CHECK制約
         // （chk_follows_not_self）違反までは吸収しない。実際にDBへ投げてみないと
         // 確認できない、モックテストでは絶対に発見できない制約違反である。
+        // メッセージにchk_follows_not_selfを含むことまで確認し、他の原因（列名の誤り等）による
+        // DataAccessExceptionを「意図した制約違反」として誤って合格させないようにする。
         Long userId = insertUser("taro");
 
         assertThatThrownBy(() -> followMapper.insertIgnoreConflict(userId, userId))
-                .isInstanceOf(DataAccessException.class);
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("chk_follows_not_self");
     }
 
     @Test
@@ -76,10 +65,10 @@ class FollowMapperTest extends AbstractIntegrationTest {
         List<UserFollowSummary> followers = followMapper.findFollowers(target, target);
 
         assertThat(followers).extracting(UserFollowSummary::getId).containsExactlyInAnyOrder(followerA, followerB);
-        assertThat(followers.stream().filter(u -> u.getId().equals(followerA)).findFirst().orElseThrow()
-                .isFollowedByMe()).isTrue();
-        assertThat(followers.stream().filter(u -> u.getId().equals(followerB)).findFirst().orElseThrow()
-                .isFollowedByMe()).isFalse();
+        assertThat(followers).filteredOn(u -> u.getId().equals(followerA))
+                .extracting(UserFollowSummary::isFollowedByMe).containsExactly(true);
+        assertThat(followers).filteredOn(u -> u.getId().equals(followerB))
+                .extracting(UserFollowSummary::isFollowedByMe).containsExactly(false);
     }
 
     @Test

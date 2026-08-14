@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.raisetechsns.backend.entity.RefreshToken;
-import com.raisetechsns.backend.entity.User;
 import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 /**
@@ -23,19 +22,6 @@ class RefreshTokenMapperTest extends AbstractIntegrationTest {
 
     @Autowired
     private RefreshTokenMapper refreshTokenMapper;
-
-    @Autowired
-    private UserMapper userMapper;
-
-    private Long insertUser(String username) {
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(username + "@example.com");
-        user.setPasswordHash("hashed-password");
-        user.setDisplayName(username + "の表示名");
-        userMapper.insert(user);
-        return user.getId();
-    }
 
     private Long insertToken(Long userId, String tokenHash) {
         RefreshToken token = new RefreshToken();
