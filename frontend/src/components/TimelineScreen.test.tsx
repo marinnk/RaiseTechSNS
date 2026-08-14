@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
 import { mockFetch } from '../testUtils/mockFetch';
 import { installIntersectionObserverMock, MockIntersectionObserver } from '../testUtils/mockIntersectionObserver';
+import { comment } from '../testUtils/commentFixture';
 import { post } from '../testUtils/postFixture';
 import type { AuthUser } from '../types/auth';
-import type { Comment } from '../types/comment';
 import type { Post } from '../types/post';
 import type { Profile } from '../types/profile';
 
@@ -28,20 +28,6 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     followerCount: 0,
     followingCount: 0,
     followedByMe: false,
-    isOwnedByMe: false,
-    ...overrides,
-  };
-}
-
-function comment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    id: 1,
-    postId: 1,
-    userId: 2,
-    username: 'jiro',
-    displayName: '次郎',
-    avatarUrl: null,
-    content: 'コメント本文',
     isOwnedByMe: false,
     ...overrides,
   };

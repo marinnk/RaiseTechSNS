@@ -2,27 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useComments } from './useComments';
 import { createComment, deleteComment, fetchComments } from '../api/comments';
-import type { Comment } from '../types/comment';
+import { comment } from '../testUtils/commentFixture';
 
 vi.mock('../api/comments');
 
 const mockFetchComments = vi.mocked(fetchComments);
 const mockCreateComment = vi.mocked(createComment);
 const mockDeleteComment = vi.mocked(deleteComment);
-
-function comment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    id: 1,
-    postId: 1,
-    userId: 2,
-    username: 'jiro',
-    displayName: '次郎',
-    avatarUrl: null,
-    content: 'コメント本文',
-    isOwnedByMe: false,
-    ...overrides,
-  };
-}
 
 describe('useComments', () => {
   const onCommentCountChange = vi.fn();

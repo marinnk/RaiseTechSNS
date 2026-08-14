@@ -2,21 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { CommentList } from './CommentList';
-import type { Comment } from '../types/comment';
-
-function comment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    id: 1,
-    postId: 1,
-    userId: 2,
-    username: 'jiro',
-    displayName: '次郎',
-    avatarUrl: null,
-    content: 'コメント本文',
-    isOwnedByMe: false,
-    ...overrides,
-  };
-}
+import { comment } from '../testUtils/commentFixture';
 
 describe('CommentList', () => {
   it('コメントが無ければ空メッセージを表示する', () => {

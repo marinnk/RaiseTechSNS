@@ -2,22 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PostDetailView } from './PostDetailView';
+import { comment } from '../testUtils/commentFixture';
 import { post } from '../testUtils/postFixture';
-import type { Comment } from '../types/comment';
-
-function comment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    id: 1,
-    postId: 1,
-    userId: 2,
-    username: 'jiro',
-    displayName: '次郎',
-    avatarUrl: null,
-    content: 'コメント本文',
-    isOwnedByMe: false,
-    ...overrides,
-  };
-}
 
 function renderView(overrides: Partial<React.ComponentProps<typeof PostDetailView>> = {}) {
   return render(
