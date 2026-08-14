@@ -35,16 +35,16 @@ class RequestLoggingFilterTest {
 
         AtomicReference<String> requestIdDuringChain = new AtomicReference<>();
         doAnswer(invocation -> {
-            requestIdDuringChain.set(MDC.get("requestId"));
+            requestIdDuringChain.set(MDC.get(MdcKeys.REQUEST_ID));
             return null;
         }).when(chain).doFilter(request, response);
 
         filter.doFilterInternal(request, response, chain);
 
         assertThat(requestIdDuringChain.get()).isNotBlank();
-        verify(response).setHeader(eq("X-Request-Id"), anyString());
+        verify(response).setHeader(eq(RequestLoggingFilter.REQUEST_ID_HEADER), anyString());
         // フィルター完了後はMDCがクリアされ、次のリクエスト（スレッド再利用時）に持ち越されない
-        assertThat(MDC.get("requestId")).isNull();
+        assertThat(MDC.get(MdcKeys.REQUEST_ID)).isNull();
     }
 
     @Test
@@ -59,6 +59,6 @@ class RequestLoggingFilterTest {
 
         assertThrows(ServletException.class, () -> filter.doFilterInternal(request, response, chain));
 
-        assertThat(MDC.get("requestId")).isNull();
+        assertThat(MDC.get(MdcKeys.REQUEST_ID)).isNull();
     }
 }

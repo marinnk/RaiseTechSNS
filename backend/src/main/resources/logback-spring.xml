@@ -10,6 +10,12 @@
     載せられるよう、JSON側にservice/env（DataDogのUnified Service Tagging規約の属性名）と
     requestId/userId（RequestLoggingFilter・JwtAuthenticationFilterがMDCに設定する相関ID）を
     含めている。詳細はdocs/monitoring-design.mdを参照。
+
+    requestId/userIdというキー名は、下記のパターン（%X{...}）・includeMdcKeyNameと、
+    com.raisetechsns.backend.logging.MdcKeys（Java側の定数）の3箇所で一致させる必要がある。
+    XML側からはJavaの定数を参照できないため、MdcKeysのキー名を変更する際はこのファイルも
+    忘れず合わせて変更すること（不一致はビルドエラーにならず、該当フィールドが静かにログから
+    消えるだけになる）。
 -->
 <configuration>
 

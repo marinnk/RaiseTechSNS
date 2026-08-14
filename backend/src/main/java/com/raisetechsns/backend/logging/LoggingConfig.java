@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 
+import jakarta.servlet.DispatcherType;
+
 /**
  * {@link RequestLoggingFilter}をサーブレットフィルターとして登録する。
  *
@@ -14,6 +16,11 @@ import org.springframework.core.Ordered;
  * （{@code Ordered.LOWEST_PRECEDENCE}）はSpring Securityのフィルターチェーン（{@code order=-100}）
  * より後になってしまい、認証エラー（401）等セキュリティ層で完結するレスポンスにリクエストIDが
  * 乗らなくなる。
+ *
+ * <p>ディスパッチ種別はデフォルトの{@code REQUEST}だけでなく{@code ERROR}も対象にしている。
+ * Spring Securityのフィルターチェーンはデフォルトで{@code ERROR}ディスパッチ（Tomcatが例外発生時に
+ * 行うエラーページへの内部転送）でも動くため、ここを揃えないとその転送中に下流が設定したMDCを
+ * このフィルターがクリアできない（詳細は{@link RequestLoggingFilter}のクラスコメントを参照）。
  */
 @Configuration
 public class LoggingConfig {
@@ -23,6 +30,7 @@ public class LoggingConfig {
         FilterRegistrationBean<RequestLoggingFilter> registration =
                 new FilterRegistrationBean<>(new RequestLoggingFilter());
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ERROR);
         return registration;
     }
 }

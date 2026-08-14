@@ -24,13 +24,26 @@ import jakarta.servlet.http.HttpServletResponse;
  *
  * <p>クライアントから送られてきた{@code X-Request-Id}等は信頼せず、必ずサーバー側で生成する
  * （将来リバースプロキシ配下に置く際に見直す）。
+ *
+ * <p>{@link LoggingConfig}でこのフィルターはREQUEST・ERRORの2種類のディスパッチに対して登録し、
+ * {@link #shouldNotFilterErrorDispatch()}もfalseにしている。Spring Securityのフィルターチェーンは
+ * デフォルトで全種類のディスパッチ（ERRORを含む）で動くため、そこに合わせないと、Tomcatが例外発生時に
+ * 行う内部的なエラーページへの転送（ERRORディスパッチ）でこのフィルターだけが素通りされ、
+ * その転送中に下流（{@code JwtAuthenticationFilter}）がMDCへ設定した{@code userId}を
+ * クリアできないまま、スレッドプール再利用時に次の無関係なリクエストのログへ漏れてしまう。
+ * 非同期コントローラー（{@code @Async}・{@code DeferredResult}等）は本プロジェクトに存在しないため、
+ * ASYNCディスパッチへの対応は今回のスコープに含めていない（追加する際は要検討）。
  */
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger LOG = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
-    static final String REQUEST_ID_MDC_KEY = "requestId";
-    static final String REQUEST_ID_HEADER = "X-Request-Id";
+    /**
+     * レスポンスヘッダー名。{@link com.raisetechsns.backend.config.SecurityConfig}のCORS設定で
+     * フロントエンド（別オリジン）からも読めるよう{@code exposedHeaders}に指定するため、
+     * このクラスの外からも参照できるようpublicにしている。
+     */
+    public static final String REQUEST_ID_HEADER = "X-Request-Id";
 
     @Override
     protected void doFilterInternal(
@@ -39,7 +52,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String requestId = UUID.randomUUID().toString();
         long startNanos = System.nanoTime();
         try {
-            MDC.put(REQUEST_ID_MDC_KEY, requestId);
+            MDC.put(MdcKeys.REQUEST_ID, requestId);
             response.setHeader(REQUEST_ID_HEADER, requestId);
             filterChain.doFilter(request, response);
         } finally {
@@ -50,5 +63,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             // JwtAuthenticationFilter等、下流でMDCに積んだキー（userId等）もまとめて消える
             MDC.clear();
         }
+    }
+
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        // デフォルト（true）だとERRORディスパッチ時にdoFilterInternalが呼ばれず、
+        // クラスコメントに書いたMDCクリア漏れが防げないため、falseにして必ず実行させる
+        return false;
     }
 }

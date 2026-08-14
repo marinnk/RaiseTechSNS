@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.raisetechsns.backend.logging.RequestLoggingFilter;
 import com.raisetechsns.backend.security.JwtAuthenticationFilter;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -66,6 +67,10 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        // X-Request-Idはブラウザのデフォルトでは非公開ヘッダー扱いのため、フロントエンドの
+        // JavaScriptからresponse.headers.get()で読めるよう明示的に公開する
+        // （用途はRequestLoggingFilter・docs/monitoring-design.mdを参照）
+        configuration.setExposedHeaders(List.of(RequestLoggingFilter.REQUEST_ID_HEADER));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);

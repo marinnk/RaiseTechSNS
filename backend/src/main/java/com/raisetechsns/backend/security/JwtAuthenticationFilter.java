@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.raisetechsns.backend.logging.MdcKeys;
 import com.raisetechsns.backend.mapper.UserMapper;
 
 import io.jsonwebtoken.JwtException;
@@ -66,7 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .map(user -> {
                         // MDCに乗せたuserIdは以降のログ行すべてに自動で付与される（クリアは
                         // RequestLoggingFilterがリクエスト完了時に一括で行う）
-                        MDC.put("userId", String.valueOf(user.getId()));
+                        MDC.put(MdcKeys.USER_ID, String.valueOf(user.getId()));
                         return (Authentication) new UsernamePasswordAuthenticationToken(user, null, List.of());
                     });
         } catch (JwtException | NumberFormatException e) {

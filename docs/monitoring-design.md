@@ -7,6 +7,9 @@
 **1.0 / 2026-08-14**  
 初版作成。バックエンド（Spring Boot）のみを対象に、構造化ログ・リクエスト相関ID・ログベースの監視方針を整備した。インフラ未構築のため、DataDog等の監視SaaSは今回導入せず、将来導入する際にそのまま活用できる形でログ基盤のみ先行整備する
 
+**1.1 / 2026-08-14**  
+コードレビューで判明した問題を修正。`RequestLoggingFilter`がTomcatの内部的なエラー転送（ERRORディスパッチ）を素通りしてしまい、その転送中に設定された`userId`がMDCから消えずスレッドプール再利用時に別リクエストへ漏れる恐れがあったため、ERRORディスパッチも対象に含めるよう修正。あわせて`X-Request-Id`レスポンスヘッダーがCORSの`exposedHeaders`未設定によりフロントエンドから読めていなかった点を修正し、MDCキー名（`requestId`・`userId`）を`MdcKeys`定数クラスに集約した
+
 ## 1. 目的・スコープ
 
 - 目的：障害発生時の原因調査を早めること、および将来DataDog等の監視SaaSを導入する際に構成変更を最小限にすること
@@ -79,7 +82,9 @@
   - 同じ`finally`でMDCをクリアする（Tomcatのスレッドプール再利用時に前のリクエストの情報が次のリクエストに漏れないようにするため）
   - クライアントから送られてきた`X-Request-Id`ヘッダーがあっても信頼せず、必ずサーバー側で新規に生成する（将来リバースプロキシ配下に置く際に見直す）
 - 実行順序：`com.raisetechsns.backend.logging.LoggingConfig`で`FilterRegistrationBean`を使い`Ordered.HIGHEST_PRECEDENCE`として明示登録している。これにより、Spring Securityのフィルターチェーン（`order=-100`）より前段で全リクエストを包み、認証エラー（401）等セキュリティ層で完結するレスポンスにも`requestId`が付与される
-- 認証済みリクエストには、`JwtAuthenticationFilter`が追加で`userId`もMDCに設定する
+- ディスパッチ種別：Servletフィルターのデフォルト（`REQUEST`のみ）に加えて`ERROR`ディスパッチも対象にしている。Spring Securityのフィルターチェーンはデフォルトで`ERROR`ディスパッチ（Tomcatが例外発生時に行うエラーページへの内部転送）でも動くため、ここを揃えないと、その転送中に`JwtAuthenticationFilter`が設定した`userId`をこのフィルターがクリアできず、スレッドプール再利用時に次の無関係なリクエストのログへ漏れてしまう
+- 認証済みリクエストには、`JwtAuthenticationFilter`が追加で`userId`もMDCに設定する。MDCのキー名（`requestId`・`userId`）は`com.raisetechsns.backend.logging.MdcKeys`に定数として集約している
+- フロントエンドから`X-Request-Id`ヘッダーを読めるよう、`SecurityConfig`のCORS設定で`exposedHeaders`に指定している（ブラウザはデフォルトでは非公開ヘッダーを隠すため）
 - 将来dd-trace-javaを導入すると、`dd.trace_id`・`dd.span_id`が自動でMDCに注入されるようになる。その際も本書の`requestId`（アプリケーション層のリクエスト単位の相関ID）と`dd.trace_id`（分散トレーシング全体の相関ID）は役割が異なるため、両方をあわせて残す方針とする
 
 ## 4. 監視すべき指標（バックエンドのみ・ログベース）
@@ -132,3 +137,4 @@
 - チーム運用に発展した場合のオンコール体制・エスカレーションフロー
 - DataDog等の監視SaaSを実際に導入する時期・予算
 - ログに個別のフィールドを持たせる要件が具体的に発生した場合の、`StructuredArguments.kv()`導入の検討
+- 非同期コントローラー（`@Async`・`DeferredResult`等）を将来追加する場合の`RequestLoggingFilter`の対応（現状はASYNCディスパッチ未対応。MDCがリクエスト完了時と別スレッドに残ったままになる恐れがある）
