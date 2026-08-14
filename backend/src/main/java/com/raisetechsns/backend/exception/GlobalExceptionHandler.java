@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * どのコントローラーで例外が発生しても、レスポンスの形（ProblemDetail）を統一するための受け皿。
@@ -53,6 +54,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ProblemDetail handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported content type");
+    }
+
+    /**
+     * 対応するハンドラー・静的リソースが見つからない場合にSpring MVCが投げる例外
+     * （例：Swagger UI・OpenAPI定義エンドポイントを{@code springdoc.*.enabled=false}で無効化した状態で
+     * {@code /v3/api-docs}等にアクセスした場合）。{@link ResponseStatusException}ではないため、
+     * このハンドラーが無いと{@link #handleUnexpectedException}に落ちて404ではなく500になってしまう。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ProblemDetail handleNoResourceFoundException(NoResourceFoundException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "resource not found");
     }
 
     @ExceptionHandler(Exception.class)

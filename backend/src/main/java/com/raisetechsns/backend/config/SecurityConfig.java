@@ -42,6 +42,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/refresh")
                         .permitAll()
+                        // Swagger UI・OpenAPI定義エンドポイント。本番相当の環境では
+                        // springdoc.api-docs.enabled / springdoc.swagger-ui.enabled がfalseになり
+                        // エンドポイント自体が登録されなくなるため、ここがpermitAllでも実害はない。
+                        // なおSwagger UIはバックエンド自身（8080番）に同一オリジンでアクセスするため、
+                        // WebConfigのCORS設定（/api/**限定）とは無関係で変更不要
+                        .requestMatchers(HttpMethod.GET,
+                                "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
+                                "/swagger-ui.html", "/swagger-ui/**")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) ->

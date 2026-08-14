@@ -1,0 +1,725 @@
+openapi: 3.1.0
+info:
+  title: RaiseTechSNS API
+  description: RaiseTechSNS（学習用SNS風Webアプリ）のバックエンドREST API仕様書
+  version: v1
+servers:
+- url: http://localhost:8080
+  description: ローカル開発環境
+paths:
+  /api/users/me:
+    put:
+      tags:
+      - user-controller
+      operationId: updateMe
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+  /api/posts/{postId}:
+    put:
+      tags:
+      - post-controller
+      operationId: update
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: "#/components/schemas/UpdatePostRequest"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+              - data
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+    delete:
+      tags:
+      - post-controller
+      operationId: delete
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+  /api/users/{userId}/follow:
+    post:
+      tags:
+      - follow-controller
+      operationId: follow
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FollowActionResponse"
+    delete:
+      tags:
+      - follow-controller
+      operationId: unfollow
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FollowActionResponse"
+  /api/users/me/avatar:
+    post:
+      tags:
+      - user-controller
+      operationId: uploadAvatar
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+    delete:
+      tags:
+      - user-controller
+      operationId: deleteAvatar
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+  /api/posts:
+    get:
+      tags:
+      - post-controller
+      operationId: list
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: beforeId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: afterId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+          default: all
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PostListResponse"
+    post:
+      tags:
+      - post-controller
+      operationId: create
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                data:
+                  $ref: "#/components/schemas/CreatePostRequest"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+              - data
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+  /api/posts/{postId}/likes:
+    post:
+      tags:
+      - like-controller
+      operationId: like
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LikeResponse"
+    delete:
+      tags:
+      - like-controller
+      operationId: unlike
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LikeResponse"
+  /api/posts/{postId}/comments:
+    get:
+      tags:
+      - comment-controller
+      operationId: list_1
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommentListResponse"
+    post:
+      tags:
+      - comment-controller
+      operationId: create_1
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommentResponse"
+  /api/auth/register:
+    post:
+      tags:
+      - auth-controller
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /api/auth/refresh:
+    post:
+      tags:
+      - auth-controller
+      operationId: refresh
+      parameters:
+      - name: refresh_token
+        in: cookie
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /api/auth/logout:
+    post:
+      tags:
+      - auth-controller
+      operationId: logout
+      parameters:
+      - name: refresh_token
+        in: cookie
+        required: false
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+  /api/auth/login:
+    post:
+      tags:
+      - auth-controller
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /api/users:
+    get:
+      tags:
+      - user-controller
+      operationId: search
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+  /api/users/{userId}:
+    get:
+      tags:
+      - user-controller
+      operationId: get
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+  /api/users/{userId}/following:
+    get:
+      tags:
+      - follow-controller
+      operationId: following
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FollowListResponse"
+  /api/users/{userId}/followers:
+    get:
+      tags:
+      - follow-controller
+      operationId: followers
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FollowListResponse"
+  /api/health:
+    get:
+      tags:
+      - health-controller
+      operationId: health
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/auth/me:
+    get:
+      tags:
+      - auth-controller
+      operationId: me
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+  /api/comments/{commentId}:
+    delete:
+      tags:
+      - comment-controller
+      operationId: delete_1
+      parameters:
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+components:
+  schemas:
+    UpdateProfileRequest:
+      type: object
+      properties:
+        bio:
+          type: string
+          maxLength: 160
+          minLength: 0
+    ProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+        followerCount:
+          type: integer
+          format: int64
+        followingCount:
+          type: integer
+          format: int64
+        followedByMe:
+          type: boolean
+        isOwnedByMe:
+          type: boolean
+    UpdatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 280
+          minLength: 0
+        keepImageIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+      - content
+      - keepImageIds
+    PostImageResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        imageUrl:
+          type: string
+    PostResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        isOwnedByMe:
+          type: boolean
+        likeCount:
+          type: integer
+          format: int64
+        commentCount:
+          type: integer
+          format: int64
+        likedByMe:
+          type: boolean
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostImageResponse"
+    FollowActionResponse:
+      type: object
+      properties:
+        followedByMe:
+          type: boolean
+        followerCount:
+          type: integer
+          format: int64
+    CreatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 280
+          minLength: 0
+      required:
+      - content
+    LikeResponse:
+      type: object
+      properties:
+        likeCount:
+          type: integer
+          format: int64
+        likedByMe:
+          type: boolean
+    CreateCommentRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 280
+          minLength: 0
+      required:
+      - content
+    CommentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        content:
+          type: string
+        isOwnedByMe:
+          type: boolean
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          minLength: 0
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          minLength: 0
+        password:
+          type: string
+          maxLength: 100
+          minLength: 8
+      required:
+      - email
+      - password
+      - username
+    AuthUserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: string
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - password
+    UserSearchResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSummaryResponse"
+    UserSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        followedByMe:
+          type: boolean
+    FollowListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSummaryResponse"
+    PostListResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostResponse"
+        hasMore:
+          type: boolean
+    CommentListResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommentResponse"
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      description: ログイン時に発行されるhttpOnly Cookie（access_token）による認証
+      name: access_token
+      in: cookie
