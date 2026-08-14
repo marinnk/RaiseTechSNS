@@ -57,9 +57,15 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5173/
 
 いずれかが期待するポートで応答しない場合は、そのポートを使っている別プロセスがいないか再度`lsof`で確認し、止めてから起動し直す。「一時的に別のポートで動かして確認する」という代替策は取らない（アプリ側の設定が固定ポート前提のため、別ポートでは正しく動作しない）。
 
+## バックエンドの統合テストとDBの関係
+
+`AbstractIntegrationTest`（`backend/src/test/java/com/raisetechsns/backend/support/`）を継承した`@SpringBootTest`系テスト（Controllerテスト・Mapperテスト等）は、`docker-compose.yml`の`db`サービス（開発用DB）には接続しない。テスト実行のたびにTestcontainersが使い捨てのPostgreSQLコンテナを自動起動し、そこにFlywayマイグレーションを適用して使うため、`./gradlew test`・`./gradlew check`の前に`docker compose up -d db`を実行しておく必要は無い。開発用DBが起動していてもいなくても、これらのテストの結果もその中身も一切変わらない。
+
+ただし、Testcontainersがコンテナを起動するためDockerデーモン自体は引き続き必須。また、`AbstractIntegrationTest`を継承し忘れた新しい`@SpringBootTest`は自動的にはこの恩恵を受けられず、`application.properties`の設定に従って開発用DBへ接続してしまう点に注意（コンパイル・単体実行では気づきにくいので、DB接続が要る新しいテストクラスを追加するときは必ず継承すること）。
+
 ## サンドボックス環境等でDockerが使えない場合
 
-Docker daemonが起動していない環境（`docker compose up` が `dial unix .../docker.sock: connect: no such file or directory` で失敗する）では、DBに依存する`bootRun`・統合テストは実行できない。その場合は以下に限定して確認し、DBが必要な検証はユーザー側の環境で行ってもらう。
+Docker daemonが起動していない環境（`docker compose up` が `dial unix .../docker.sock: connect: no such file or directory` で失敗する）では、DBに依存する`bootRun`・統合テスト（Testcontainersを使うテストを含む）は実行できない。その場合は以下に限定して確認し、DBが必要な検証はユーザー側の環境で行ってもらう。
 
 ```sh
 cd backend

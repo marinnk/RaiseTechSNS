@@ -34,13 +34,14 @@ import com.raisetechsns.backend.dto.LoginRequest;
 import com.raisetechsns.backend.dto.RegisterRequest;
 import com.raisetechsns.backend.dto.UpdatePostRequest;
 import com.raisetechsns.backend.storage.StorageService;
+import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class PostControllerTest {
+class PostControllerTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

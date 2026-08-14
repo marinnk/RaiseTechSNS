@@ -40,6 +40,13 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	// テスト実行時だけ使い捨てのPostgreSQLコンテナを自動起動する（開発用DBには一切接続しない）。
+	// バージョンはio.spring.dependency-managementプラグインが読み込むSpring Bootの依存管理
+	// （testcontainers-bom）で個別モジュールも含めて管理されるため明示しない。
+	// なお@Testcontainers・@Containerは使わない方針（AbstractIntegrationTest参照）のため、
+	// それらを提供するtestcontainers-junit-jupiterは依存に加えていない。
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

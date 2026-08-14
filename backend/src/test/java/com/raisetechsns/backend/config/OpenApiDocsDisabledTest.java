@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.raisetechsns.backend.support.AbstractIntegrationTest;
+
 /**
  * 本番相当の環境（{@code springdoc.api-docs.enabled} / {@code springdoc.swagger-ui.enabled}が
  * false、実運用では{@code SPRINGDOC_ENABLED=false}）では、Swagger UI・OpenAPI定義エンドポイントが
@@ -19,7 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
         "springdoc.swagger-ui.enabled=false"
 })
 @AutoConfigureMockMvc
-class OpenApiDocsDisabledTest {
+class OpenApiDocsDisabledTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

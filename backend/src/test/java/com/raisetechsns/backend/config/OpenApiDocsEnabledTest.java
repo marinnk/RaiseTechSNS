@@ -10,6 +10,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.raisetechsns.backend.support.AbstractIntegrationTest;
+
 /**
  * デフォルト設定（開発環境相当、{@code SPRINGDOC_ENABLED}未設定）では
  * Swagger UI・OpenAPI定義エンドポイントが未認証で閲覧できることを確認する。
@@ -17,7 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class OpenApiDocsEnabledTest {
+class OpenApiDocsEnabledTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

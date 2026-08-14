@@ -22,13 +22,14 @@ import com.raisetechsns.backend.dto.CreateCommentRequest;
 import com.raisetechsns.backend.dto.CreatePostRequest;
 import com.raisetechsns.backend.dto.LoginRequest;
 import com.raisetechsns.backend.dto.RegisterRequest;
+import com.raisetechsns.backend.support.AbstractIntegrationTest;
 
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class CommentControllerTest {
+class CommentControllerTest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
