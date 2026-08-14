@@ -49,6 +49,9 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 **1.14 / 2026-08-13**  
 画面設計（screen-design.md）のワイヤーフレーム通り、アイコン画像をヘッダー・投稿フォーム・タイムライン各投稿・コメント欄にも表示するようにした。これに伴い、ログイン中利用者情報（`GET /api/auth/me`等が返すレスポンス）・投稿API・コメントAPIのレスポンスに`avatarUrl`を追加した
 
+**1.15 / 2026-08-14**  
+springdoc-openapiを導入し、Controllerのコードから実行時にAPI仕様書（Swagger UI・OpenAPI定義）を自動生成できるようにした。開発環境ではSwagger UI（`/swagger-ui/index.html`）で常に最新のエンドポイント一覧・リクエスト/レスポンスのスキーマを確認できる。本番相当の環境では`SPRINGDOC_ENABLED=false`で無効化する。あわせて、Gradleタスク（`generateOpenApiDocs`）で静的な`docs/openapi.yaml`を生成できるようにした
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -73,6 +76,7 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 - データアクセス：MyBatis（mybatis-spring-boot-starter 4.0.1、XMLマッパー方式）
 - ビルドツール：Gradle 9.5.1
 - JDBCドライバ：PostgreSQL JDBCドライバ 42.7.11
+- API仕様書：springdoc-openapi（Swagger UI・OpenAPI定義を自動生成。開発環境のみ有効）
 
 ### フロントエンド
 
@@ -265,6 +269,8 @@ erDiagram
 - データ量が増えて検索性能が問題になった場合は、username・display_nameへのインデックス追加を検討する
 
 ## 5. API設計
+
+以下は主要なエンドポイントの概要である。詳細なリクエスト/レスポンスのスキーマは、開発環境のSwagger UI（`/swagger-ui/index.html`）、またはそこから生成した`docs/openapi.yaml`を参照すること。
 
 ### 投稿API
 

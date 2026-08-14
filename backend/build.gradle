@@ -3,6 +3,8 @@ plugins {
 	id 'checkstyle'
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
+	// Swagger UI・OpenAPI定義（/v3/api-docs）に加え、静的なopenapi.yamlファイルの自動生成にも使う
+	id 'org.springdoc.openapi-gradle-plugin' version '1.9.0'
 }
 
 group = 'com.raisetechsns'
@@ -34,6 +36,8 @@ dependencies {
 	// プロフィール画像（アバター）をAmazon S3にアップロードするために使用する
 	implementation platform('software.amazon.awssdk:bom:2.51.1')
 	implementation 'software.amazon.awssdk:s3'
+	// Swagger UI（実行時）とOpenAPI定義（/v3/api-docs）を自動生成する
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -41,6 +45,22 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 静的なOpenAPI定義（YAML）を生成するタスクの設定。
+// このプラグインは実際にアプリを一時的に起動し（forkedSpringBootRun）、起動中の
+// /v3/api-docs.yaml エンドポイントにアクセスしてファイルに書き出す方式のため、
+// 実行前にPostgreSQL（`docker compose up -d`）が起動している必要がある。
+// 通常のbootRun（8080固定）と衝突しないよう、生成専用に8081を割り当てる。
+// build/check/testには依存させていないため、`./gradlew generateOpenApiDocs`で個別に実行すること
+openApi {
+	apiDocsUrl = "http://localhost:8081/v3/api-docs.yaml"
+	outputDir = file("$rootDir/../docs")
+	outputFileName = "openapi.yaml"
+	waitTimeInSeconds = 30
+	customBootRun {
+		args = ["--server.port=8081"]
+	}
 }
 
 checkstyle {

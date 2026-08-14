@@ -15,6 +15,7 @@ X（旧Twitter）のタイムライン形式を模したSNS風Webアプリケー
 - バックエンド：Java 25 / Spring Boot 4.1.0 / MyBatis / Gradle
 - フロントエンド：TypeScript / React 19 / Vite
 - データベース：PostgreSQL 16
+- API仕様書：Swagger UI / OpenAPI（springdoc-openapi、開発環境のみ有効）
 
 バージョンの詳細は[基本設計書](docs/basic-design.md)を参照してください。
 
@@ -94,6 +95,24 @@ npm run dev
 ```
 
 起動後、`http://localhost:5173` にアクセスするとバックエンドAPIとの接続状況が表示されます。APIの接続先はデフォルトで `http://localhost:8080` です（`frontend/.env.example` を参考に `.env.development` を上書きすると変更できます）。
+
+## API仕様書
+
+バックエンド起動後、開発環境では以下でAPI仕様書を確認できます。
+
+- Swagger UI：[http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)  
+  エンドポイント一覧・リクエスト/レスポンスのスキーマを確認し、その場で試し打ちもできます
+- OpenAPI定義（JSON）：[http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+静的なOpenAPI定義ファイル（`docs/openapi.yaml`）は、PostgreSQL（`docker compose up -d db`）を起動した状態で以下を実行すると再生成できます。エンドポイントを追加・変更したPRでは、このファイルもあわせて更新してコミットしてください。
+
+```sh
+cd backend
+export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
+./gradlew generateOpenApiDocs
+```
+
+本番相当の環境では、環境変数`SPRINGDOC_ENABLED=false`を設定してSwagger UI・OpenAPI定義エンドポイントを無効化してください（デフォルトは開発環境向けに有効です）。
 
 ## テスト
 
