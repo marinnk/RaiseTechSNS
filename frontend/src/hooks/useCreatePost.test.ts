@@ -2,30 +2,12 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCreatePost } from './useCreatePost';
 import { createPost } from '../api/posts';
+import { post } from '../testUtils/postFixture';
 import type { Post } from '../types/post';
 
 vi.mock('../api/posts');
 
 const mockCreatePost = vi.mocked(createPost);
-
-function post(overrides: Partial<Post> = {}): Post {
-  return {
-    id: 1,
-    userId: 1,
-    username: 'taro',
-    displayName: '太郎',
-    avatarUrl: null,
-    content: '投稿本文',
-    createdAt: '2026-08-10T10:00:00',
-    updatedAt: '2026-08-10T10:00:00',
-    isOwnedByMe: true,
-    likeCount: 0,
-    commentCount: 0,
-    likedByMe: false,
-    images: [],
-    ...overrides,
-  };
-}
 
 describe('useCreatePost', () => {
   const upsertPosts = vi.fn();

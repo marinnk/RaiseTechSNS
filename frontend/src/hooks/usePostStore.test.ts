@@ -2,31 +2,12 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { usePostStore } from './usePostStore';
 import { deletePost, updatePost } from '../api/posts';
-import type { Post } from '../types/post';
+import { post } from '../testUtils/postFixture';
 
 vi.mock('../api/posts');
 
 const mockUpdatePost = vi.mocked(updatePost);
 const mockDeletePost = vi.mocked(deletePost);
-
-function post(overrides: Partial<Post> = {}): Post {
-  return {
-    id: 1,
-    userId: 1,
-    username: 'taro',
-    displayName: '太郎',
-    avatarUrl: null,
-    content: '投稿本文',
-    createdAt: '2026-08-10T10:00:00',
-    updatedAt: '2026-08-10T10:00:00',
-    isOwnedByMe: true,
-    likeCount: 0,
-    commentCount: 0,
-    likedByMe: false,
-    images: [],
-    ...overrides,
-  };
-}
 
 describe('usePostStore', () => {
   it('upsertPostsで投稿を登録し、getPostsで指定したid順に取得できる', () => {

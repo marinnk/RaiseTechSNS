@@ -3,31 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLikes } from './useLikes';
 import { ApiError } from '../api/client';
 import { likePost, unlikePost } from '../api/likes';
-import type { Post } from '../types/post';
+import { post } from '../testUtils/postFixture';
 
 vi.mock('../api/likes');
 
 const mockLikePost = vi.mocked(likePost);
 const mockUnlikePost = vi.mocked(unlikePost);
-
-function post(overrides: Partial<Post> = {}): Post {
-  return {
-    id: 1,
-    userId: 1,
-    username: 'taro',
-    displayName: '太郎',
-    avatarUrl: null,
-    content: '投稿本文',
-    createdAt: '2026-08-10T10:00:00',
-    updatedAt: '2026-08-10T10:00:00',
-    isOwnedByMe: true,
-    likeCount: 0,
-    commentCount: 0,
-    likedByMe: false,
-    images: [],
-    ...overrides,
-  };
-}
 
 describe('useLikes', () => {
   const applyLikeUpdate = vi.fn();
