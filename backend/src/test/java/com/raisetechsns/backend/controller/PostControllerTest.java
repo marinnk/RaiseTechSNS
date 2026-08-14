@@ -476,11 +476,9 @@ class PostControllerTest extends AbstractIntegrationTest {
 
     @Test
     void update_未ログインなら401になる() throws Exception {
-        Cookie accessToken = registerAndLogin("taro", "update-unauth@example.com");
-        var created = mockMvc.perform(createPostRequest("投稿").cookie(accessToken)).andReturn();
-        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
-
-        mockMvc.perform(updatePostRequest(postId, "編集後", List.of()))
+        // 認証はSpring Securityのフィルターでコントローラーより前に判定されるため、
+        // 投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
+        mockMvc.perform(updatePostRequest(999999, "編集後", List.of()))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -515,11 +513,11 @@ class PostControllerTest extends AbstractIntegrationTest {
 
     @Test
     void update_application_jsonで送ると415になる() throws Exception {
+        // Content-Typeの不一致はSpring MVCのコンテンツネゴシエーションでコントローラーより前に
+        // 判定されるため、投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
         Cookie accessToken = registerAndLogin("taro", "update-wrong-content-type@example.com");
-        var created = mockMvc.perform(createPostRequest("編集前").cookie(accessToken)).andReturn();
-        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
 
-        mockMvc.perform(put("/api/posts/" + postId)
+        mockMvc.perform(put("/api/posts/999999")
                         .cookie(accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UpdatePostRequest("編集後", List.of()))))
@@ -584,11 +582,7 @@ class PostControllerTest extends AbstractIntegrationTest {
 
     @Test
     void delete_未ログインなら401になる() throws Exception {
-        Cookie accessToken = registerAndLogin("taro", "delete-unauth@example.com");
-        var created = mockMvc.perform(createPostRequest("投稿").cookie(accessToken)).andReturn();
-        int postId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
-
-        mockMvc.perform(delete("/api/posts/" + postId))
+        mockMvc.perform(delete("/api/posts/999999"))
                 .andExpect(status().isUnauthorized());
     }
 

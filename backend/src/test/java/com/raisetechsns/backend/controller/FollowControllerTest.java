@@ -103,6 +103,14 @@ class FollowControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void follow_userIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "follow-badid@example.com");
+
+        mockMvc.perform(post("/api/users/abc/follow").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void unfollow_フォローを解除するとfollowerCountが減りfollowedByMeがfalseになる() throws Exception {
         Cookie tarosCookie = registerAndLogin("taro", "unfollow-ok-taro@example.com");
         Cookie jirosCookie = registerAndLogin("jiro", "unfollow-ok-jiro@example.com");

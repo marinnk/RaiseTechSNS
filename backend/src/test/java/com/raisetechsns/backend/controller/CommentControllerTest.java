@@ -121,10 +121,9 @@ class CommentControllerTest extends AbstractIntegrationTest {
 
     @Test
     void create_未ログインなら401になる() throws Exception {
-        Cookie accessToken = registerAndLogin("taro", "comment-create-unauth@example.com");
-        int postId = createPost(accessToken, "投稿");
-
-        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+        // 認証はSpring Securityのフィルターでコントローラーより前に判定されるため、
+        // 投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
+        mockMvc.perform(post("/api/posts/999999/comments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(commentBody("コメント")))
                 .andExpect(status().isUnauthorized());
@@ -132,10 +131,11 @@ class CommentControllerTest extends AbstractIntegrationTest {
 
     @Test
     void create_不正な形式のJSONを送ると400になる() throws Exception {
+        // JSONのデシリアライズはCommentService.createの投稿存在チェックより前に行われるため、
+        // 投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
         Cookie accessToken = registerAndLogin("taro", "comment-create-badjson@example.com");
-        int postId = createPost(accessToken, "投稿");
 
-        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+        mockMvc.perform(post("/api/posts/999999/comments")
                         .cookie(accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{not-json"))

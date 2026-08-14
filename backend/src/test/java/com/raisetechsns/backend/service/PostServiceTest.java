@@ -3,7 +3,6 @@ package com.raisetechsns.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -182,42 +181,66 @@ class PostServiceTest {
 
     @Test
     void create_画像がちょうど4枚なら作成できる() {
-        // 上限4枚ちょうどの境界値（5枚はBAD_REQUESTになることは別テストで確認済み）
+        // 上限4枚ちょうどの境界値（5枚はBAD_REQUESTになることは別テストで確認済み）。
+        // storageService.uploadを画像ごとに個別スタブして戻り値を検証することで、
+        // any()マッチャーだけでは検出できない「アップロード結果が正しく保存されているか」まで確認する
         User currentUser = user(1L);
         doAnswer(invocation -> {
             Post inserted = invocation.getArgument(0);
             inserted.setId(10L);
             return null;
         }).when(postMapper).insert(any(Post.class));
-        List<MultipartFile> images = List.of(
-                jpegFile("1.jpg"), jpegFile("2.jpg"), jpegFile("3.jpg"), jpegFile("4.jpg"));
+        MultipartFile image1 = jpegFile("1.jpg");
+        MultipartFile image2 = jpegFile("2.jpg");
+        MultipartFile image3 = jpegFile("3.jpg");
+        MultipartFile image4 = jpegFile("4.jpg");
+        when(storageService.upload("posts", image1)).thenReturn("https://example.com/posts/1.jpg");
+        when(storageService.upload("posts", image2)).thenReturn("https://example.com/posts/2.jpg");
+        when(storageService.upload("posts", image3)).thenReturn("https://example.com/posts/3.jpg");
+        when(storageService.upload("posts", image4)).thenReturn("https://example.com/posts/4.jpg");
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "4枚投稿")));
 
-        PostResponse result = postService.create(new CreatePostRequest("4枚投稿"), images, currentUser);
+        PostResponse result = postService.create(
+                new CreatePostRequest("4枚投稿"), List.of(image1, image2, image3, image4), currentUser);
 
         assertThat(result.id()).isEqualTo(10L);
-        verify(postImageMapper, times(4)).insert(eq(10L), any(), anyInt());
+        verify(postImageMapper).insert(10L, "https://example.com/posts/1.jpg", 0);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/2.jpg", 1);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/3.jpg", 2);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/4.jpg", 3);
     }
 
     @Test
     void create_空のMultipartFileは枚数チェックの対象にならない() {
         // ブラウザが画像未選択時に送ってくる空のMultipartFile（サイズ0）が混ざっていても、
-        // 実質4枚（空を除く）としてカウントされ、5枚扱いでBAD_REQUESTにならないことを確認する
+        // 実質4枚（空を除く）としてカウントされ、5枚扱いでBAD_REQUESTにならないことを確認する。
+        // 空ファイル自体がinsertされていないことまで、URLを個別検証して確認する
         User currentUser = user(1L);
         doAnswer(invocation -> {
             Post inserted = invocation.getArgument(0);
             inserted.setId(10L);
             return null;
         }).when(postMapper).insert(any(Post.class));
+        MultipartFile image1 = jpegFile("1.jpg");
+        MultipartFile image2 = jpegFile("2.jpg");
+        MultipartFile image3 = jpegFile("3.jpg");
+        MultipartFile image4 = jpegFile("4.jpg");
         MultipartFile empty = new MockMultipartFile("images", "", "application/octet-stream", new byte[0]);
-        List<MultipartFile> images = List.of(
-                jpegFile("1.jpg"), jpegFile("2.jpg"), jpegFile("3.jpg"), jpegFile("4.jpg"), empty);
+        when(storageService.upload("posts", image1)).thenReturn("https://example.com/posts/1.jpg");
+        when(storageService.upload("posts", image2)).thenReturn("https://example.com/posts/2.jpg");
+        when(storageService.upload("posts", image3)).thenReturn("https://example.com/posts/3.jpg");
+        when(storageService.upload("posts", image4)).thenReturn("https://example.com/posts/4.jpg");
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "投稿")));
 
-        PostResponse result = postService.create(new CreatePostRequest("投稿"), images, currentUser);
+        PostResponse result = postService.create(
+                new CreatePostRequest("投稿"), List.of(image1, image2, image3, image4, empty), currentUser);
 
         assertThat(result.id()).isEqualTo(10L);
-        verify(postImageMapper, times(4)).insert(eq(10L), any(), anyInt());
+        verify(postImageMapper).insert(10L, "https://example.com/posts/1.jpg", 0);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/2.jpg", 1);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/3.jpg", 2);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/4.jpg", 3);
+        verify(storageService, never()).upload(any(), eq(empty));
     }
 
     @Test

@@ -92,6 +92,14 @@ class LikeControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void like_postIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "like-badid@example.com");
+
+        mockMvc.perform(post("/api/posts/abc/likes").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void like_存在しない投稿なら404になる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "like-404@example.com");
 
@@ -123,10 +131,9 @@ class LikeControllerTest extends AbstractIntegrationTest {
 
     @Test
     void unlike_未ログインなら401になる() throws Exception {
-        Cookie accessToken = registerAndLogin("taro", "unlike-unauth@example.com");
-        int postId = createPost(accessToken, "投稿");
-
-        mockMvc.perform(delete("/api/posts/" + postId + "/likes"))
+        // 認証はSpring Securityのフィルターでコントローラーより前に判定されるため、
+        // 投稿が実在するかどうかは結果に影響しない（存在しないidのままでよい）
+        mockMvc.perform(delete("/api/posts/999999/likes"))
                 .andExpect(status().isUnauthorized());
     }
 
