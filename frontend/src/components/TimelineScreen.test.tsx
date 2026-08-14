@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineScreen } from './TimelineScreen';
 import { mockFetch } from '../testUtils/mockFetch';
 import { installIntersectionObserverMock, MockIntersectionObserver } from '../testUtils/mockIntersectionObserver';
+import { post } from '../testUtils/postFixture';
 import type { AuthUser } from '../types/auth';
 import type { Comment } from '../types/comment';
 import type { Post } from '../types/post';
@@ -16,25 +17,6 @@ const currentUser: AuthUser = {
   email: 'taro@example.com',
   avatarUrl: null,
 };
-
-function post(overrides: Partial<Post> = {}): Post {
-  return {
-    id: 1,
-    userId: 1,
-    username: 'taro',
-    displayName: '太郎',
-    avatarUrl: null,
-    content: '投稿本文',
-    createdAt: '2026-08-10T10:00:00',
-    updatedAt: '2026-08-10T10:00:00',
-    isOwnedByMe: true,
-    likeCount: 0,
-    commentCount: 0,
-    likedByMe: false,
-    images: [],
-    ...overrides,
-  };
-}
 
 function profile(overrides: Partial<Profile> = {}): Profile {
   return {
