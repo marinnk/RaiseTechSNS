@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -62,7 +63,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Long userId = jwtService.parseUserId(token);
             return userMapper.findById(userId)
-                    .map(user -> (Authentication) new UsernamePasswordAuthenticationToken(user, null, List.of()));
+                    .map(user -> {
+                        // MDCに乗せたuserIdは以降のログ行すべてに自動で付与される（クリアは
+                        // RequestLoggingFilterがリクエスト完了時に一括で行う）
+                        MDC.put("userId", String.valueOf(user.getId()));
+                        return (Authentication) new UsernamePasswordAuthenticationToken(user, null, List.of());
+                    });
         } catch (JwtException | NumberFormatException e) {
             return Optional.empty();
         }

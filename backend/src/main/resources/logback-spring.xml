@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ログの出力形式をLOG_FORMAT環境変数で切り替える。
+
+    - 未設定 または plain（デフォルト）：ローカル開発向けの人間可読なコンソール出力
+    - json：構造化（JSON）ログ出力。net.logstash.logback:logstash-logback-encoderを使用する
+
+    今回DataDog自体は導入しないが、本番相当の環境ではLOG_FORMAT=jsonを設定する想定で、将来
+    DataDog Agent等がコンテナの標準出力（本設定はファイル出力を行わない）を収集する運用にそのまま
+    載せられるよう、JSON側にservice/env（DataDogのUnified Service Tagging規約の属性名）と
+    requestId/userId（RequestLoggingFilter・JwtAuthenticationFilterがMDCに設定する相関ID）を
+    含めている。詳細はdocs/monitoring-design.mdを参照。
+-->
+<configuration>
+
+    <property name="LOG_FORMAT" value="${LOG_FORMAT:-plain}" />
+
+    <appender name="PLAIN_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [reqId=%X{requestId:-} userId=%X{userId:-}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- DataDogのUnified Service Tagging（DD_SERVICE/DD_ENV相当）に合わせたフィールド名。
+                 将来dd-trace-javaを導入する際、同名の環境変数を設定するだけで揃う -->
+            <customFields>{"service":"${DD_SERVICE:-raisetechsns-backend}","env":"${DD_ENV:-local}"}</customFields>
+            <!-- MDCの中身を無条件に出さず、許可リスト化する。将来何らかのライブラリが意図せず
+                 MDCに機微情報を積んでも、ここに列挙していないキーはログに出ない -->
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <if condition='property("LOG_FORMAT").equals("json")'>
+        <then>
+            <root level="INFO">
+                <appender-ref ref="JSON_CONSOLE" />
+            </root>
+        </then>
+        <else>
+            <root level="INFO">
+                <appender-ref ref="PLAIN_CONSOLE" />
+            </root>
+        </else>
+    </if>
+
+</configuration>
