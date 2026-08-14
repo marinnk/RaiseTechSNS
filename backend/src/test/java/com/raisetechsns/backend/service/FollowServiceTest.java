@@ -136,11 +136,33 @@ class FollowServiceTest {
     }
 
     @Test
+    void listFollowers_対象利用者が存在しなければNOT_FOUNDになる() {
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"))
+                .when(profileService).requireUserExists(999L);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> followService.listFollowers(999L, 1L));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void listFollowing_フォロー中一覧を取得できる() {
         when(followMapper.findFollowing(1L, 1L)).thenReturn(List.of(summary(3L)));
 
         FollowListResponse result = followService.listFollowing(1L, 1L);
 
         assertThat(result.users()).extracting(u -> u.id()).containsExactly(3L);
+    }
+
+    @Test
+    void listFollowing_対象利用者が存在しなければNOT_FOUNDになる() {
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"))
+                .when(profileService).requireUserExists(999L);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> followService.listFollowing(999L, 1L));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

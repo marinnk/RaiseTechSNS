@@ -3,6 +3,7 @@ package com.raisetechsns.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -180,6 +181,64 @@ class PostServiceTest {
     }
 
     @Test
+    void create_画像がちょうど4枚なら作成できる() {
+        // 上限4枚ちょうどの境界値（5枚はBAD_REQUESTになることは別テストで確認済み）
+        User currentUser = user(1L);
+        doAnswer(invocation -> {
+            Post inserted = invocation.getArgument(0);
+            inserted.setId(10L);
+            return null;
+        }).when(postMapper).insert(any(Post.class));
+        List<MultipartFile> images = List.of(
+                jpegFile("1.jpg"), jpegFile("2.jpg"), jpegFile("3.jpg"), jpegFile("4.jpg"));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "4枚投稿")));
+
+        PostResponse result = postService.create(new CreatePostRequest("4枚投稿"), images, currentUser);
+
+        assertThat(result.id()).isEqualTo(10L);
+        verify(postImageMapper, times(4)).insert(eq(10L), any(), anyInt());
+    }
+
+    @Test
+    void create_空のMultipartFileは枚数チェックの対象にならない() {
+        // ブラウザが画像未選択時に送ってくる空のMultipartFile（サイズ0）が混ざっていても、
+        // 実質4枚（空を除く）としてカウントされ、5枚扱いでBAD_REQUESTにならないことを確認する
+        User currentUser = user(1L);
+        doAnswer(invocation -> {
+            Post inserted = invocation.getArgument(0);
+            inserted.setId(10L);
+            return null;
+        }).when(postMapper).insert(any(Post.class));
+        MultipartFile empty = new MockMultipartFile("images", "", "application/octet-stream", new byte[0]);
+        List<MultipartFile> images = List.of(
+                jpegFile("1.jpg"), jpegFile("2.jpg"), jpegFile("3.jpg"), jpegFile("4.jpg"), empty);
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "投稿")));
+
+        PostResponse result = postService.create(new CreatePostRequest("投稿"), images, currentUser);
+
+        assertThat(result.id()).isEqualTo(10L);
+        verify(postImageMapper, times(4)).insert(eq(10L), any(), anyInt());
+    }
+
+    @Test
+    void create_挿入後に投稿が取得できなければNOT_FOUNDになる() {
+        // 挿入直後の再取得が空になるのは通常起こらないはずの防御的な分岐だが、
+        // 万一起きた場合に正しくNOT_FOUNDとして扱われることを確認する
+        User currentUser = user(1L);
+        doAnswer(invocation -> {
+            Post inserted = invocation.getArgument(0);
+            inserted.setId(10L);
+            return null;
+        }).when(postMapper).insert(any(Post.class));
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.create(new CreatePostRequest("投稿"), List.of(), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void list_投稿が0件でも例外にならずfindByPostIdsを呼ばない() {
         // postIdsが空のままpostImageMapper.findByPostIdsを呼ぶと、生成されるSQLのIN (...)が
         // 空になり構文エラーになる不具合の再発防止テスト（投稿0件のタイムラインで毎回発生しうる）
@@ -215,6 +274,47 @@ class PostServiceTest {
 
         assertThat(result.hasMore()).isFalse();
         assertThat(result.posts()).hasSize(2);
+    }
+
+    @Test
+    void list_limitが1未満なら1に切り上げられる() {
+        // limit=0（境界外）はMapperには「1件+hasMore判定用の1件」=2件として渡る
+        when(postMapper.findAllWithAuthor(eq(2), isNull(), eq(1L), isNull(), eq(false))).thenReturn(List.of());
+
+        postService.list(0, null, null, 1L, null, false);
+
+        verify(postMapper).findAllWithAuthor(eq(2), isNull(), eq(1L), isNull(), eq(false));
+    }
+
+    @Test
+    void list_limitが50を超えると50に切り下げられる() {
+        when(postMapper.findAllWithAuthor(eq(51), isNull(), eq(1L), isNull(), eq(false))).thenReturn(List.of());
+
+        postService.list(100, null, null, 1L, null, false);
+
+        verify(postMapper).findAllWithAuthor(eq(51), isNull(), eq(1L), isNull(), eq(false));
+    }
+
+    @Test
+    void list_limitがちょうど50なら50のまま() {
+        // 上限50ちょうどの境界値（51はテストのために50へ丸められる想定）
+        when(postMapper.findAllWithAuthor(eq(51), isNull(), eq(1L), isNull(), eq(false))).thenReturn(List.of());
+
+        postService.list(50, null, null, 1L, null, false);
+
+        verify(postMapper).findAllWithAuthor(eq(51), isNull(), eq(1L), isNull(), eq(false));
+    }
+
+    @Test
+    void list_beforeId指定時は指定したidより古い投稿をMapperへ要求する() {
+        // これまでのlistのテストはすべてbeforeId=null（初回ページ）だったため、
+        // 追加読み込み（2ページ目以降）でbeforeIdがそのままMapperへ渡ることを確認する
+        when(postMapper.findAllWithAuthor(eq(21), eq(5L), eq(1L), isNull(), eq(false)))
+                .thenReturn(List.of(row(4L, 1L, "beforeIdより古い投稿")));
+
+        PostListResponse result = postService.list(null, 5L, null, 1L, null, false);
+
+        assertThat(result.posts()).extracting(PostResponse::id).containsExactly(4L);
     }
 
     @Test
@@ -315,6 +415,20 @@ class PostServiceTest {
     }
 
     @Test
+    void update_所有者チェック後にupdateが0件ならNOT_FOUNDになる() {
+        // 所有者チェック（findById）は通過したが、その後のupdate自体は0件だった
+        // （チェックと更新の間に他から削除された等の競合）場合の防御的な分岐
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(0);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.update(10L, new UpdatePostRequest("更新後", List.of()), List.of(), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void update_keepImageIdsに存在しないidが含まれるとBAD_REQUESTになる() {
         User currentUser = user(1L);
         when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
@@ -364,6 +478,71 @@ class PostServiceTest {
     }
 
     @Test
+    void update_残す枚数と新規枚数の合計がちょうど4枚なら更新できる() {
+        // 上限4枚ちょうどの境界値（合計5枚はBAD_REQUESTになることは別テストで確認済み）
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
+        List<PostImage> existing = List.of(
+                postImage(1L, 10L, "url1", 0), postImage(2L, 10L, "url2", 1), postImage(3L, 10L, "url3", 2));
+        when(postImageMapper.findByPostId(10L)).thenReturn(existing);
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
+
+        PostResponse result = postService.update(
+                10L, new UpdatePostRequest("更新後", List.of(1L, 2L, 3L)), List.of(jpegFile("new.jpg")), currentUser);
+
+        assertThat(result.content()).isEqualTo("更新後");
+    }
+
+    @Test
+    void update_新しい画像の形式が不正ならBAD_REQUESTになる() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of());
+        MultipartFile textFile = new MockMultipartFile("images", "note.txt", "text/plain", new byte[10]);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.update(
+                        10L, new UpdatePostRequest("更新後", List.of()), List.of(textFile), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(postMapper, never()).update(any(), any(), any());
+    }
+
+    @Test
+    void update_新しい画像を追加すると保存される() {
+        // これまでのupdateのテストはnewImagesが空か上限超過のケースのみで、実際に新しい画像を
+        // 追加して保存される正常系（表示順が「残す画像の続き」から始まること）は未検証だった
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
+        PostImage kept = postImage(1L, 10L, "https://example.com/posts/keep.jpg", 0);
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of(kept));
+        MultipartFile newImage = jpegFile("new.jpg");
+        when(storageService.upload("posts", newImage)).thenReturn("https://example.com/posts/new.jpg");
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 1L, "更新後")));
+
+        postService.update(10L, new UpdatePostRequest("更新後", List.of(1L)), List.of(newImage), currentUser);
+
+        verify(postImageMapper).insert(10L, "https://example.com/posts/keep.jpg", 0);
+        verify(postImageMapper).insert(10L, "https://example.com/posts/new.jpg", 1);
+    }
+
+    @Test
+    void update_更新後に投稿が取得できなければNOT_FOUNDになる() {
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.update(10L, 1L, "更新後")).thenReturn(1);
+        when(postImageMapper.findByPostId(10L)).thenReturn(List.of());
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> postService.update(10L, new UpdatePostRequest("更新後", List.of()), List.of(), currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void update_残さなかった既存画像は削除される() {
         User currentUser = user(1L);
         when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
@@ -409,6 +588,20 @@ class PostServiceTest {
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> postService.delete(999L, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void delete_所有者チェック後にdeleteが0件ならNOT_FOUNDになる() {
+        // 所有者チェック（findById）は通過したが、その後のdelete自体は0件だった
+        // （チェックと削除の間に他から削除された等の競合）場合の防御的な分岐
+        User currentUser = user(1L);
+        when(postMapper.findById(10L)).thenReturn(Optional.of(post(10L, 1L)));
+        when(postMapper.delete(10L, 1L)).thenReturn(0);
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> postService.delete(10L, currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }

@@ -81,6 +81,19 @@ class LikeServiceTest {
     }
 
     @Test
+    void like_requirePostExists通過後にfindByIdWithAuthorが空ならNOT_FOUNDになる() {
+        // requirePostExistsは通過したが、その後currentStateのfindByIdWithAuthorが空になる
+        // （チェックと参照の間に他から削除された等の競合）場合の防御的な分岐
+        User currentUser = user(1L);
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> likeService.like(10L, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void unlike_いいねを取り消せる() {
         User currentUser = user(1L);
         when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.of(row(10L, 0L, false)));
@@ -100,6 +113,17 @@ class LikeServiceTest {
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class, () -> likeService.unlike(999L, currentUser));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void unlike_requirePostExists通過後にfindByIdWithAuthorが空ならNOT_FOUNDになる() {
+        User currentUser = user(1L);
+        when(postMapper.findByIdWithAuthor(10L, 1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> likeService.unlike(10L, currentUser));
 
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }

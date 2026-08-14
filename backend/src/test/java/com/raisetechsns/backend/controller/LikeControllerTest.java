@@ -120,4 +120,21 @@ class LikeControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.likeCount").value(0));
     }
+
+    @Test
+    void unlike_未ログインなら401になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "unlike-unauth@example.com");
+        int postId = createPost(accessToken, "投稿");
+
+        mockMvc.perform(delete("/api/posts/" + postId + "/likes"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unlike_存在しない投稿なら404になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "unlike-404@example.com");
+
+        mockMvc.perform(delete("/api/posts/999999/likes").cookie(accessToken))
+                .andExpect(status().isNotFound());
+    }
 }

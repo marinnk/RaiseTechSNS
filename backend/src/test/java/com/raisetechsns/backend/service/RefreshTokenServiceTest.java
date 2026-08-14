@@ -91,6 +91,25 @@ class RefreshTokenServiceTest {
     }
 
     @Test
+    void rotate_トークンは有効だが紐づく利用者が存在しなければ401になる() {
+        // トークン自体は期限内・未失効で正当だが、その持ち主のユーザーが既に存在しない
+        // （通常運用では起こらないはずの防御的な分岐）場合も401として扱う
+        RefreshToken valid = new RefreshToken();
+        valid.setId(1L);
+        valid.setUserId(999L);
+        valid.setTokenHash("valid-hash");
+        valid.setExpiresAt(LocalDateTime.now().plusDays(1));
+        when(refreshTokenMapper.findByTokenHash(anyString())).thenReturn(Optional.of(valid));
+        when(userMapper.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class, () -> refreshTokenService.rotate("raw-token"));
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verify(refreshTokenMapper).revoke(1L);
+    }
+
+    @Test
     void rotate_存在しないトークンの場合は401になる() {
         when(refreshTokenMapper.findByTokenHash(anyString())).thenReturn(Optional.empty());
 

@@ -97,6 +97,14 @@ class CommentControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void list_postIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "comment-list-badid@example.com");
+
+        mockMvc.perform(get("/api/posts/abc/comments").cookie(accessToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void create_ログイン中ならコメントを作成できる() throws Exception {
         Cookie accessToken = registerAndLogin("taro", "comment-create-ok@example.com");
         int postId = createPost(accessToken, "投稿");
@@ -109,6 +117,29 @@ class CommentControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.content").value("はじめてのコメント"))
                 .andExpect(jsonPath("$.username").value("taro"))
                 .andExpect(jsonPath("$.isOwnedByMe").value(true));
+    }
+
+    @Test
+    void create_未ログインなら401になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "comment-create-unauth@example.com");
+        int postId = createPost(accessToken, "投稿");
+
+        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(commentBody("コメント")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void create_不正な形式のJSONを送ると400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "comment-create-badjson@example.com");
+        int postId = createPost(accessToken, "投稿");
+
+        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -134,6 +165,20 @@ class CommentControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(commentBody(tooLong)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void create_本文が280文字ちょうどなら作成できる() throws Exception {
+        // 上限280文字ちょうどの境界値（281文字はBAD_REQUESTになることは別テストで確認済み）
+        Cookie accessToken = registerAndLogin("taro", "comment-create-boundary@example.com");
+        int postId = createPost(accessToken, "投稿");
+        String exactly280 = "あ".repeat(280);
+
+        mockMvc.perform(post("/api/posts/" + postId + "/comments")
+                        .cookie(accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(commentBody(exactly280)))
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -180,5 +225,19 @@ class CommentControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(delete("/api/comments/999999").cookie(accessToken))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_未ログインなら401になる() throws Exception {
+        mockMvc.perform(delete("/api/comments/999999"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void delete_commentIdが数値でない場合は400になる() throws Exception {
+        Cookie accessToken = registerAndLogin("taro", "comment-delete-badid@example.com");
+
+        mockMvc.perform(delete("/api/comments/abc").cookie(accessToken))
+                .andExpect(status().isBadRequest());
     }
 }
