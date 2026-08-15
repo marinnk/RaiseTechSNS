@@ -52,6 +52,9 @@ postsテーブルのcreated_at・updated_atをTIMESTAMPからTIMESTAMPTZに変�
 **1.15 / 2026-08-14**  
 springdoc-openapiを導入し、Controllerのコードから実行時にAPI仕様書（Swagger UI・OpenAPI定義）を自動生成できるようにした。開発環境ではSwagger UI（`/swagger-ui/index.html`）で常に最新のエンドポイント一覧・リクエスト/レスポンスのスキーマを確認できる。本番相当の環境では`SPRINGDOC_ENABLED=false`で無効化する。あわせて、Gradleタスク（`generateOpenApiDocs`）で静的な`docs/openapi.yaml`を生成できるようにした
 
+**1.16 / 2026-08-14**  
+logstash-logback-encoderを導入し、構造化（JSON）ログ出力に対応した。環境変数`LOG_FORMAT`（`plain`/`json`）で出力形式を切り替え、全リクエストにリクエスト相関ID（`requestId`）を発行してMDC経由で全ログ行・レスポンスヘッダー（`X-Request-Id`）に伝播する`RequestLoggingFilter`を追加した。DataDog等の監視SaaSは未導入だが、将来導入する際にそのまま活用できる形でログ基盤を先行整備した。詳細な設計方針は[監視設計書](monitoring-design.md)を参照
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
@@ -77,6 +80,7 @@ springdoc-openapiを導入し、Controllerのコードから実行時にAPI仕�
 - ビルドツール：Gradle 9.5.1
 - JDBCドライバ：PostgreSQL JDBCドライバ 42.7.11
 - API仕様書：springdoc-openapi（Swagger UI・OpenAPI定義を自動生成。開発環境のみ有効）
+- 構造化ログ：logstash-logback-encoder（環境変数`LOG_FORMAT=json`でJSON出力に切替。詳細は[監視設計書](monitoring-design.md)を参照）
 
 ### フロントエンド
 
