@@ -3,11 +3,11 @@
 // 注意: 実行するたびにDBへ投稿が追加され続ける。件数をリセットしたい場合は
 // perf-tests/seed/seed.sqlを再実行すること（perf_user_%の投稿を削除してから再投入する）。
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import type { Options } from 'k6/options';
 
 import { BASE_URL, SEED_USER_COUNT } from '../lib/config.ts';
-import { loginAsSeedUser, userNumberForVu } from '../lib/auth.ts';
+import { getAuthHeaders, userNumberForVu } from '../lib/auth.ts';
 import { buildOptions } from '../lib/options.ts';
 import { buildJsonOnlyMultipart } from '../lib/multipart.ts';
 
@@ -16,22 +16,19 @@ export const options: Options = buildOptions({
   http_req_failed: ['rate<0.01'],
 });
 
-let loggedIn = false;
-
 export default function (): void {
   const userNumber = userNumberForVu(SEED_USER_COUNT);
-  if (!loggedIn) {
-    loginAsSeedUser(userNumber);
-    loggedIn = true;
-  }
+  const authHeaders = getAuthHeaders(userNumber);
 
   const { body, headers } = buildJsonOnlyMultipart('data', {
     content: `k6 load test post ${Date.now()}-${__VU}-${__ITER}`,
   });
 
   const res = http.post(`${BASE_URL}/api/posts`, body, {
-    headers,
+    headers: { ...authHeaders, ...headers },
     tags: { name: 'POST /api/posts' },
   });
   check(res, { 'post create: status is 201': (r) => r.status === 201 });
+
+  sleep(1);
 }
