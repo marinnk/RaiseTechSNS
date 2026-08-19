@@ -33,14 +33,18 @@ RaiseTechSNSのパフォーマンステスト一式。**開発者が任意のタ
 [k6](https://k6.io/)のインストールが必要（例：`brew install k6`）。
 
 ```sh
-# load（既定）: 20VUまでランプアップし2分間維持する
-k6 run perf-tests/k6/scenarios/timeline-read.ts
+# load（既定）: 20VUまでランプアップし2分間維持する。HTMLレポートも残す
+./perf-tests/k6/run.sh timeline-read
 
 # smoke: 1VU・1イテレーションのみ。シナリオ自体が壊れていないかの確認用
+# （レポートは生成されない。下記「HTMLレポート」を参照）
+./perf-tests/k6/run.sh timeline-read smoke
+
+# k6を直接叩いてもよい（この場合レポートは生成されず、標準出力にサマリーが出るのみ）
 k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts
 
 # ローカル以外の環境に対して実行する場合
-k6 run -e BASE_URL=https://example.com perf-tests/k6/scenarios/timeline-read.ts
+BASE_URL=https://example.com ./perf-tests/k6/run.sh timeline-read
 ```
 
 用意しているシナリオ（[k6/scenarios/](k6/scenarios/)）：
@@ -77,12 +81,16 @@ npm run typecheck
 必要な場合は`npm run build && npm run preview`（既定4173番）で起動し、
 `FRONTEND_URL=http://localhost:4173 ./perf-tests/frontend/run.sh`のように実行すること。
 
-### 結果の出力先
+### HTMLレポート
 
-`perf-tests/results/`（Git管理対象外）に出力する。k6はデフォルトで標準出力にサマリーを表示するのみで
-ファイルは残さないため、記録を残したい場合は`k6 run --out json=perf-tests/results/k6/<name>.json ...`のように
-`--out`オプションを使うこと。Lighthouseのレポート（`results/lighthouse/`）は`run.sh`が実行のたびに
-直近5件だけ残して古いものを自動削除する。
+`perf-tests/results/`（Git管理対象外）に出力する。
+
+- k6：`perf-tests/k6/run.sh`（k6のWeb Dashboard機能を使用）が`results/k6/<シナリオ名>-<日時>.html`に出力する。
+  同一シナリオについて直近5件だけ残して古いものを自動削除する。**テスト時間が短すぎる（目安30秒未満）と
+  「レポート生成をスキップした」というログが出て生成されない。** smokeモード（数秒で終わる）では常に
+  生成されないので、レポートが欲しい場合は必ずloadモード（既定）で実行すること。`k6 run`を直接叩いた場合は
+  レポートは生成されず標準出力にサマリーが出るのみ
+- Lighthouse：`perf-tests/frontend/run.sh`が`results/lighthouse/`に出力する。同様に直近5件だけ残す
 
 ### 実行後のデータの後片付け
 

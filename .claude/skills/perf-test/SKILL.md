@@ -53,20 +53,19 @@ docker exec -i raisetechsns-db psql -v ON_ERROR_STOP=1 -U raisetechsns -d raiset
 `k6`コマンドが無ければ`brew install k6`でインストールする（`which k6`で確認）。
 
 ```sh
-# 個別シナリオ（smoke=既定）
-k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts
-
-# loadモード（20VUまでランプアップし3分程度かかる）
-k6 run perf-tests/k6/scenarios/timeline-read.ts
-
-# 全シナリオをまとめてsmoke実行する場合
+# まずは全シナリオをsmokeモードで動作確認（数秒、レポートは生成されない）
 for s in timeline-read auth-login post-create likes-comments profile-read followers-list; do
   echo "=== $s ==="
   k6 run -e MODE=smoke "perf-tests/k6/scenarios/$s.ts"
 done
+
+# loadモード（20VUまでランプアップし3分程度）。HTMLレポートも自動生成される
+./perf-tests/k6/run.sh timeline-read
 ```
 
 結果は標準出力の`checks`（成功率100%が期待値）・`http_req_duration`（p95）・`http_req_failed`を見る。`thresholds`未達（`✗`表示）があれば、シナリオ名・エンドポイント・実測値をユーザーに報告する。
+
+`perf-tests/k6/run.sh <シナリオ名>`（既定load、第2引数に`smoke`も指定可）を使うとk6のWeb Dashboard機能で`perf-tests/results/k6/<シナリオ名>-<日時>.html`にレポートも残る（同一シナリオの直近5件だけ保持）。**テスト時間が短すぎる（目安30秒未満）とレポートは生成されない**ため、smokeモードでは常にスキップされる。レポートが欲しい場合はloadモードで実行すること。単に`k6 run`を直接叩いた場合はレポートは生成されない。
 
 ## 4. Lighthouse（フロントエンド画面性能監査）を実行する
 
@@ -82,7 +81,7 @@ frontend（5173）が起動していることを確認してから実行する�
 
 ## 5. 結果を報告する
 
-- k6：シナリオごとにcheck成功率・p95応答時間・エラー率。thresholds未達があれば強調する
+- k6：シナリオごとにcheck成功率・p95応答時間・エラー率。thresholds未達があれば強調する。`run.sh`でloadモード実行した場合はHTMLレポートのパスも伝える
 - Lighthouse：performanceスコア・主要Core Web Vitals（LCP・CLS・TBT）。レポートファイルのパスを伝える
 - 非機能要件（`docs/basic-design.md`）は「学習用途・大量アクセス非考慮」前提のため、数値は厳密なSLA判定ではなく「劣化に気づくための目安」として扱う
 
