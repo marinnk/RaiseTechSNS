@@ -1,0 +1,29 @@
+// 各シナリオで共通して使う実行モード（k6の`options`を組み立てる）。
+//
+// - smoke: 1VU・1イテレーションのみ実行する。シナリオ自体が壊れていないかの動作確認用。
+// - load : 学習用途で「複数人が同時に使う」規模を想定したランプアップ（既定）。
+//          本番相当の大規模トラフィックは想定しない（docs/basic-design.md 非機能要件を参照）。
+//
+// 実行例:
+//   k6 run perf-tests/k6/scenarios/timeline-read.js                 # load（既定）
+//   k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.js   # smoke
+export function buildOptions(loadThresholds) {
+  const mode = __ENV.MODE || 'load';
+
+  if (mode === 'smoke') {
+    return {
+      vus: 1,
+      iterations: 1,
+      thresholds: { http_req_failed: ['rate==0'] },
+    };
+  }
+
+  return {
+    stages: [
+      { duration: '30s', target: 20 }, // 20VUまでランプアップ
+      { duration: '2m', target: 20 }, // 20VUを2分間維持
+      { duration: '30s', target: 0 }, // クールダウン
+    ],
+    thresholds: loadThresholds,
+  };
+}
