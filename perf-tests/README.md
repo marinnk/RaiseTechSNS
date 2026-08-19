@@ -1,0 +1,105 @@
+## perf-tests
+
+RaiseTechSNSのパフォーマンステスト一式。**開発者が任意のタイミングで手動実行するもの**であり、
+`./gradlew check`・`npm run test`・`npm run lint`のいずれにも組み込まれていない（CI自体も未整備）。
+
+`docs/basic-design.md`の非機能要件は「受講生・個人の学習利用を前提とし、大量アクセス・大量データは
+考慮しない」としているため、ここでの目的は本番並みの負荷への耐性証明ではなく、以下のような
+設計上の判断が実際にどう振る舞うかを手元で確認できるようにすること。
+
+- タイムライン（`GET /api/posts`）は全ログインユーザーが30秒間隔でポーリングする設計
+- フォロワー一覧（`GET /api/users/{userId}/followers` / `following`）は意図的に無ページネーション
+- ユーザー検索は索引なしの`LIKE`検索
+
+### 2つのトラック
+
+- **[k6/](k6/)** — バックエンドAPIの負荷試験。同時アクセス数を上げてサーバー・DBの挙動を見る
+- **[frontend/](frontend/)** — フロントエンド画面のLighthouse監査。単一ユーザーがページを開いたときの
+  読み込み・描画品質（Core Web Vitals等）を見る
+
+測定対象も手法も異なるため、混同しないこと。
+
+### 事前準備（共通）
+
+1. `.claude/skills/run-app/SKILL.md`の手順でbackend（8080）・frontend（5173）・DB（5432）を起動する
+2. `perf-tests/seed/seed.sql`を一度投入する（詳細は[seed/README.md](seed/README.md)参照）
+
+### バックエンドAPI負荷試験（k6）の実行
+
+シナリオはTypeScriptで書かれている（`perf-tests/k6/lib/`・`perf-tests/k6/scenarios/`配下）。k6（v0.57以降）は`.ts`ファイルを
+ビルドなしでそのまま実行できる（内部でesbuildにより型情報を取り除くだけで、実行時の型チェックは行わない）ため、
+`k6 run`の前にコンパイル等は不要。
+
+[k6](https://k6.io/)のインストールが必要（例：`brew install k6`）。
+
+```sh
+# load（既定）: 20VUまでランプアップし2分間維持する。HTMLレポートも残す
+./perf-tests/k6/run.sh timeline-read
+
+# smoke: 1VU・1イテレーションのみ。シナリオ自体が壊れていないかの確認用
+# （レポートは生成されない。下記「HTMLレポート」を参照）
+./perf-tests/k6/run.sh timeline-read smoke
+
+# k6を直接叩いてもよい（この場合レポートは生成されず、標準出力にサマリーが出るのみ）
+k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts
+
+# ローカル以外の環境に対して実行する場合
+BASE_URL=https://example.com ./perf-tests/k6/run.sh timeline-read
+```
+
+用意しているシナリオ（[k6/scenarios/](k6/scenarios/)）：
+
+- `timeline-read.ts` — `GET /api/posts`（タイムライン。ポーリング＋無限スクロール想定、最優先）
+- `auth-login.ts` — `POST /api/auth/login`（bcryptコストの影響確認）
+- `post-create.ts` — `POST /api/posts`（投稿作成、テキストのみ）
+- `likes-comments.ts` — いいね登録/解除・コメント作成（高頻度な操作系）
+- `profile-read.ts` — `GET /api/users/{userId}`（フォロー数の相関サブクエリ集計）
+- `followers-list.ts` — `GET /api/users/{userId}/followers`（無ページネーションの弱点確認）
+
+各シナリオの`thresholds`（p95応答時間・エラー率）はあくまで目安値。非機能要件が緩いプロジェクトである点を踏まえ、
+厳密なSLAとしてではなく「劣化に気づくための基準」として扱うこと。
+
+型チェック（`k6 run`自体は型を検証しないため、エディタ・CIでの静的チェック用）：
+
+```sh
+cd perf-tests/k6
+npm install
+npm run typecheck
+```
+
+### フロントエンド画面性能監査（Lighthouse）の実行
+
+```sh
+./perf-tests/frontend/run.sh
+```
+
+詳細・制約（このアプリはURLルーティングを持たない単一画面SPAのため、監査対象はタイムライン画面のみ）は
+[frontend/lighthouse.config.cjs](frontend/lighthouse.config.cjs)のコメントを参照。
+
+`FRONTEND_URL`未指定の場合`npm run dev`（Viteの開発サーバー、5173番）を対象にするため、本番ビルドより
+スコアが大きく悪化して見える点に注意（未バンドル・未最適化のモジュールを都度配信するため）。本番相当の数値が
+必要な場合は`npm run build && npm run preview`（既定4173番）で起動し、
+`FRONTEND_URL=http://localhost:4173 ./perf-tests/frontend/run.sh`のように実行すること。
+
+### HTMLレポート
+
+`perf-tests/results/`（Git管理対象外）に出力する。
+
+- k6：`perf-tests/k6/run.sh`（k6のWeb Dashboard機能を使用）が`results/k6/<シナリオ名>-<日時>.html`に出力する。
+  同一シナリオについて直近5件だけ残して古いものを自動削除する。**テスト時間が短すぎる（目安30秒未満）と
+  「レポート生成をスキップした」というログが出て生成されない。** smokeモード（数秒で終わる）では常に
+  生成されないので、レポートが欲しい場合は必ずloadモード（既定）で実行すること。`k6 run`を直接叩いた場合は
+  レポートは生成されず標準出力にサマリーが出るのみ
+- Lighthouse：`perf-tests/frontend/run.sh`が`results/lighthouse/`に出力する。同様に直近5件だけ残す
+
+### 実行後のデータの後片付け
+
+`post-create.ts`・`likes-comments.ts`はDBに書き込みを行うため、実行後もダミーデータ（投稿・コメント）が
+残ったままになる（自動では消えない）。放置すると、普段の手動確認でタイムラインにダミー投稿が混ざったり、
+バックエンドの統合テストが蓄積データの影響で不安定になったりする（`.claude/skills/quality-check/SKILL.md`が
+警告している「DBの蓄積データによる見せかけの失敗」と同種の問題）。
+
+`timeline-read.ts`・`auth-login.ts`・`profile-read.ts`・`followers-list.ts`のみ（読み取り専用）ならこの
+リセットは不要。書き込みを伴うシナリオを実行した後は、`perf-tests/seed/seed.sql`を再実行すること。
+`perf_user_%`の投稿を全削除→再投入するため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、
+元の状態に戻る（DBを書き換える操作のため、他の人がローカルDBを使っている可能性がある場合は一声かけてから実行する）。

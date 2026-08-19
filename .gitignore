@@ -16,3 +16,6 @@ out/
 
 ### 環境変数 ###
 .env
+
+### パフォーマンステスト結果 ###
+perf-tests/results/
