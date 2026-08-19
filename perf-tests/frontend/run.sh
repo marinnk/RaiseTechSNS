@@ -60,3 +60,16 @@ echo "Running Lighthouse against $FRONTEND_URL/ ..."
 )
 
 echo "Report written to $REPORT_PATH.report.html"
+
+# 実行するたびにレポートが増え続けるとローカルのディスクを圧迫するため、
+# 直近KEEP件を残して古いレポート（.report.html/.report.jsonのペア）を削除する。
+# ファイル名がタイムスタンプ順のため、ソートするだけで古い順に並ぶ。
+# macOS標準のhead/bashにはGNU拡張の`head -n -N`・`mapfile`が無いため使わない。
+KEEP=5
+REPORT_COUNT=$(ls -1 "$OUT_DIR"/timeline-*.report.json 2>/dev/null | wc -l | tr -d ' ')
+if [ "$REPORT_COUNT" -gt "$KEEP" ]; then
+  ls -1 "$OUT_DIR"/timeline-*.report.json | sort | head -n "$((REPORT_COUNT - KEEP))" | while IFS= read -r old_json; do
+    base="${old_json%.report.json}"
+    rm -f "${base}.report.json" "${base}.report.html"
+  done
+fi

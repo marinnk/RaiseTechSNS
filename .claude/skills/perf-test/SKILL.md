@@ -76,7 +76,7 @@ frontend（5173）が起動していることを確認してから実行する�
 ./perf-tests/frontend/run.sh
 ```
 
-結果は`perf-tests/results/lighthouse/<name>-<timestamp>.report.html`（ブラウザで開ける）と`.report.json`に出力される。JSONの`categories.performance.score`（0〜1）・`audits.largest-contentful-paint`等の主要指標をユーザーに報告する。
+結果は`perf-tests/results/lighthouse/<name>-<timestamp>.report.html`（ブラウザで開ける）と`.report.json`に出力される。JSONの`categories.performance.score`（0〜1）・`audits.largest-contentful-paint`等の主要指標をユーザーに報告する。古いレポートは`run.sh`が実行のたびに直近5件だけ残して自動削除するため、手動で消す必要はない。
 
 `npm run dev`（Viteの開発サーバー）に対する数値は未バンドル・未最適化のため本番ビルドより大幅に悪く出る。本番相当の数値が要る場合は`cd frontend && npm run build && npm run preview`（既定4173番）を起動してから`FRONTEND_URL=http://localhost:4173 ./perf-tests/frontend/run.sh`を実行する。
 
@@ -87,6 +87,21 @@ frontend（5173）が起動していることを確認してから実行する�
 - 非機能要件（`docs/basic-design.md`）は「学習用途・大量アクセス非考慮」前提のため、数値は厳密なSLA判定ではなく「劣化に気づくための目安」として扱う
 
 ## 6. 後片付け
+
+### DBに残ったテストデータのリセット
+
+`post-create.js`（投稿を作成）・`likes-comments.js`（コメントを作成）を実行すると、ダミーデータがDBに残ったままになる（自動では消えない）。放置すると、後で普通に手動確認したときに`k6 load test post ...`のようなダミー投稿がタイムラインに混ざったり、[quality-check skill](../quality-check/SKILL.md)が警告する「DBの蓄積データによる見せかけの失敗」を自ら引き起こしたりする。
+
+そのため、k6シナリオ（特に`post-create.js`・`likes-comments.js`）を実行した後は、**ユーザーに確認した上で**`perf-tests/seed/seed.sql`を再実行してリセットすることを提案する。`perf_user_%`の投稿を全削除→再投入する処理のため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、元の状態に戻る（DBを直接操作する破壊的操作なので、無断では実行しない）。
+
+```sh
+docker exec -i raisetechsns-db psql -v ON_ERROR_STOP=1 -U raisetechsns -d raisetechsns \
+  < perf-tests/seed/seed.sql
+```
+
+`timeline-read.js`・`auth-login.js`・`profile-read.js`・`followers-list.js`のみ実行した場合はデータを書き換えないため、このリセットは不要。
+
+### サーバーの停止
 
 検証のためだけに起動したサーバーは、作業終了時に停止する（[run-app skill](../run-app/SKILL.md)参照）。
 

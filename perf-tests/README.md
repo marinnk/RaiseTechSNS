@@ -69,4 +69,17 @@ k6 run -e BASE_URL=https://example.com perf-tests/k6/scenarios/timeline-read.js
 
 `perf-tests/results/`（Git管理対象外）に出力する。k6はデフォルトで標準出力にサマリーを表示するのみで
 ファイルは残さないため、記録を残したい場合は`k6 run --out json=perf-tests/results/k6/<name>.json ...`のように
-`--out`オプションを使うこと。
+`--out`オプションを使うこと。Lighthouseのレポート（`results/lighthouse/`）は`run.sh`が実行のたびに
+直近5件だけ残して古いものを自動削除する。
+
+### 実行後のデータの後片付け
+
+`post-create.js`・`likes-comments.js`はDBに書き込みを行うため、実行後もダミーデータ（投稿・コメント）が
+残ったままになる（自動では消えない）。放置すると、普段の手動確認でタイムラインにダミー投稿が混ざったり、
+バックエンドの統合テストが蓄積データの影響で不安定になったりする（`.claude/skills/quality-check/SKILL.md`が
+警告している「DBの蓄積データによる見せかけの失敗」と同種の問題）。
+
+`timeline-read.js`・`auth-login.js`・`profile-read.js`・`followers-list.js`のみ（読み取り専用）ならこの
+リセットは不要。書き込みを伴うシナリオを実行した後は、`perf-tests/seed/seed.sql`を再実行すること。
+`perf_user_%`の投稿を全削除→再投入するため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、
+元の状態に戻る（DBを書き換える操作のため、他の人がローカルDBを使っている可能性がある場合は一声かけてから実行する）。

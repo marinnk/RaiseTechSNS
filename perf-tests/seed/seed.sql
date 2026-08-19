@@ -14,6 +14,11 @@ BEGIN;
 
 -- 既存の投入データを削除。likes・comments・post_imagesはpost_idにON DELETE CASCADEが
 -- 設定されているため、postsを削除すれば連鎖的に消える（db/migration/V4, V5参照）。
+-- refresh_tokensはuser_idにON DELETE CASCADEが無いため、先に明示的に削除しておかないと
+-- 「ログイン済みのperf_user_%」をDELETEしようとしたときに外部キー制約違反になる
+-- （k6シナリオ・perf-tests/frontend/run.shはいずれもログイン時にrefresh_tokenを発行するため、
+-- 一度でもテストを実行した後の再投入で必ず該当する）。
+DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'perf_user_%');
 DELETE FROM follows
 WHERE follower_id IN (SELECT id FROM users WHERE username LIKE 'perf_user_%')
    OR followee_id IN (SELECT id FROM users WHERE username LIKE 'perf_user_%');
