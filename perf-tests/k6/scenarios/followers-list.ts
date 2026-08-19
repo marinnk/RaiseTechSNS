@@ -6,19 +6,20 @@
 // ためのシナリオ。
 import http from 'k6/http';
 import { check } from 'k6';
+import type { Options } from 'k6/options';
 
-import { BASE_URL, POPULAR_USERNAME, SEED_USER_COUNT } from '../lib/config.js';
-import { loginAsSeedUser, userNumberForVu } from '../lib/auth.js';
-import { buildOptions } from '../lib/options.js';
+import { BASE_URL, POPULAR_USERNAME, SEED_USER_COUNT } from '../lib/config.ts';
+import { loginAsSeedUser, userNumberForVu } from '../lib/auth.ts';
+import { buildOptions } from '../lib/options.ts';
 
-export const options = buildOptions({
+export const options: Options = buildOptions({
   http_req_duration: ['p(95)<500'],
   http_req_failed: ['rate<0.01'],
 });
 
-let popularUserId;
+let popularUserId: number | undefined;
 
-function ensureReady(userNumber) {
+function ensureReady(userNumber: number): void {
   if (popularUserId) {
     return;
   }
@@ -26,11 +27,11 @@ function ensureReady(userNumber) {
   const res = http.get(`${BASE_URL}/api/users?q=${POPULAR_USERNAME}`, {
     tags: { name: 'GET /api/users (setup)' },
   });
-  const users = JSON.parse(res.body).users;
+  const users: Array<{ id: number; username: string }> = JSON.parse(res.body as string).users;
   popularUserId = users.find((u) => u.username === POPULAR_USERNAME)?.id;
 }
 
-export default function () {
+export default function (): void {
   const userNumber = userNumberForVu(SEED_USER_COUNT);
   ensureReady(userNumber);
   if (!popularUserId) {

@@ -2,19 +2,20 @@
 // タイムライン上で最も高頻度に呼ばれる操作系エンドポイント群をまとめて対象にする。
 import http from 'k6/http';
 import { check } from 'k6';
+import type { Options } from 'k6/options';
 
-import { BASE_URL, SEED_USER_COUNT } from '../lib/config.js';
-import { loginAsSeedUser, userNumberForVu } from '../lib/auth.js';
-import { buildOptions } from '../lib/options.js';
+import { BASE_URL, SEED_USER_COUNT } from '../lib/config.ts';
+import { loginAsSeedUser, userNumberForVu } from '../lib/auth.ts';
+import { buildOptions } from '../lib/options.ts';
 
-export const options = buildOptions({
+export const options: Options = buildOptions({
   http_req_duration: ['p(95)<300'],
   http_req_failed: ['rate<0.01'],
 });
 
-let postIds = [];
+let postIds: number[] = [];
 
-function ensureReady(userNumber) {
+function ensureReady(userNumber: number): void {
   if (postIds.length > 0) {
     return;
   }
@@ -22,10 +23,10 @@ function ensureReady(userNumber) {
   const res = http.get(`${BASE_URL}/api/posts?scope=all&limit=50`, {
     tags: { name: 'GET /api/posts (setup)' },
   });
-  postIds = JSON.parse(res.body).posts.map((p) => p.id);
+  postIds = JSON.parse(res.body as string).posts.map((p: { id: number }) => p.id);
 }
 
-export default function () {
+export default function (): void {
   const userNumber = userNumberForVu(SEED_USER_COUNT);
   ensureReady(userNumber);
   if (postIds.length === 0) {

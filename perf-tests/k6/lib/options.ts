@@ -1,3 +1,5 @@
+import type { Options } from 'k6/options';
+
 // 各シナリオで共通して使う実行モード（k6の`options`を組み立てる）。
 //
 // - smoke: 1VU・1イテレーションのみ実行する。シナリオ自体が壊れていないかの動作確認用。
@@ -5,9 +7,9 @@
 //          本番相当の大規模トラフィックは想定しない（docs/basic-design.md 非機能要件を参照）。
 //
 // 実行例:
-//   k6 run perf-tests/k6/scenarios/timeline-read.js                 # load（既定）
-//   k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.js   # smoke
-export function buildOptions(loadThresholds) {
+//   k6 run perf-tests/k6/scenarios/timeline-read.ts                 # load（既定）
+//   k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts   # smoke
+export function buildOptions(loadThresholds: Options['thresholds']): Options {
   const mode = __ENV.MODE || 'load';
 
   if (mode === 'smoke') {

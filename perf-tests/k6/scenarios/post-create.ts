@@ -4,20 +4,21 @@
 // perf-tests/seed/seed.sqlを再実行すること（perf_user_%の投稿を削除してから再投入する）。
 import http from 'k6/http';
 import { check } from 'k6';
+import type { Options } from 'k6/options';
 
-import { BASE_URL, SEED_USER_COUNT } from '../lib/config.js';
-import { loginAsSeedUser, userNumberForVu } from '../lib/auth.js';
-import { buildOptions } from '../lib/options.js';
-import { buildJsonOnlyMultipart } from '../lib/multipart.js';
+import { BASE_URL, SEED_USER_COUNT } from '../lib/config.ts';
+import { loginAsSeedUser, userNumberForVu } from '../lib/auth.ts';
+import { buildOptions } from '../lib/options.ts';
+import { buildJsonOnlyMultipart } from '../lib/multipart.ts';
 
-export const options = buildOptions({
+export const options: Options = buildOptions({
   http_req_duration: ['p(95)<500'],
   http_req_failed: ['rate<0.01'],
 });
 
 let loggedIn = false;
 
-export default function () {
+export default function (): void {
   const userNumber = userNumberForVu(SEED_USER_COUNT);
   if (!loggedIn) {
     loginAsSeedUser(userNumber);

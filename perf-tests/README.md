@@ -26,30 +26,42 @@ RaiseTechSNSのパフォーマンステスト一式。**開発者が任意のタ
 
 ### バックエンドAPI負荷試験（k6）の実行
 
+シナリオはTypeScriptで書かれている（`perf-tests/k6/lib/`・`perf-tests/k6/scenarios/`配下）。k6（v0.57以降）は`.ts`ファイルを
+ビルドなしでそのまま実行できる（内部でesbuildにより型情報を取り除くだけで、実行時の型チェックは行わない）ため、
+`k6 run`の前にコンパイル等は不要。
+
 [k6](https://k6.io/)のインストールが必要（例：`brew install k6`）。
 
 ```sh
 # load（既定）: 20VUまでランプアップし2分間維持する
-k6 run perf-tests/k6/scenarios/timeline-read.js
+k6 run perf-tests/k6/scenarios/timeline-read.ts
 
 # smoke: 1VU・1イテレーションのみ。シナリオ自体が壊れていないかの確認用
-k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.js
+k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts
 
 # ローカル以外の環境に対して実行する場合
-k6 run -e BASE_URL=https://example.com perf-tests/k6/scenarios/timeline-read.js
+k6 run -e BASE_URL=https://example.com perf-tests/k6/scenarios/timeline-read.ts
 ```
 
 用意しているシナリオ（[k6/scenarios/](k6/scenarios/)）：
 
-- `timeline-read.js` — `GET /api/posts`（タイムライン。ポーリング＋無限スクロール想定、最優先）
-- `auth-login.js` — `POST /api/auth/login`（bcryptコストの影響確認）
-- `post-create.js` — `POST /api/posts`（投稿作成、テキストのみ）
-- `likes-comments.js` — いいね登録/解除・コメント作成（高頻度な操作系）
-- `profile-read.js` — `GET /api/users/{userId}`（フォロー数の相関サブクエリ集計）
-- `followers-list.js` — `GET /api/users/{userId}/followers`（無ページネーションの弱点確認）
+- `timeline-read.ts` — `GET /api/posts`（タイムライン。ポーリング＋無限スクロール想定、最優先）
+- `auth-login.ts` — `POST /api/auth/login`（bcryptコストの影響確認）
+- `post-create.ts` — `POST /api/posts`（投稿作成、テキストのみ）
+- `likes-comments.ts` — いいね登録/解除・コメント作成（高頻度な操作系）
+- `profile-read.ts` — `GET /api/users/{userId}`（フォロー数の相関サブクエリ集計）
+- `followers-list.ts` — `GET /api/users/{userId}/followers`（無ページネーションの弱点確認）
 
 各シナリオの`thresholds`（p95応答時間・エラー率）はあくまで目安値。非機能要件が緩いプロジェクトである点を踏まえ、
 厳密なSLAとしてではなく「劣化に気づくための基準」として扱うこと。
+
+型チェック（`k6 run`自体は型を検証しないため、エディタ・CIでの静的チェック用）：
+
+```sh
+cd perf-tests/k6
+npm install
+npm run typecheck
+```
 
 ### フロントエンド画面性能監査（Lighthouse）の実行
 
@@ -74,12 +86,12 @@ k6 run -e BASE_URL=https://example.com perf-tests/k6/scenarios/timeline-read.js
 
 ### 実行後のデータの後片付け
 
-`post-create.js`・`likes-comments.js`はDBに書き込みを行うため、実行後もダミーデータ（投稿・コメント）が
+`post-create.ts`・`likes-comments.ts`はDBに書き込みを行うため、実行後もダミーデータ（投稿・コメント）が
 残ったままになる（自動では消えない）。放置すると、普段の手動確認でタイムラインにダミー投稿が混ざったり、
 バックエンドの統合テストが蓄積データの影響で不安定になったりする（`.claude/skills/quality-check/SKILL.md`が
 警告している「DBの蓄積データによる見せかけの失敗」と同種の問題）。
 
-`timeline-read.js`・`auth-login.js`・`profile-read.js`・`followers-list.js`のみ（読み取り専用）ならこの
+`timeline-read.ts`・`auth-login.ts`・`profile-read.ts`・`followers-list.ts`のみ（読み取り専用）ならこの
 リセットは不要。書き込みを伴うシナリオを実行した後は、`perf-tests/seed/seed.sql`を再実行すること。
 `perf_user_%`の投稿を全削除→再投入するため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、
 元の状態に戻る（DBを書き換える操作のため、他の人がローカルDBを使っている可能性がある場合は一声かけてから実行する）。

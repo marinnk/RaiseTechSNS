@@ -54,15 +54,15 @@ docker exec -i raisetechsns-db psql -v ON_ERROR_STOP=1 -U raisetechsns -d raiset
 
 ```sh
 # 個別シナリオ（smoke=既定）
-k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.js
+k6 run -e MODE=smoke perf-tests/k6/scenarios/timeline-read.ts
 
 # loadモード（20VUまでランプアップし3分程度かかる）
-k6 run perf-tests/k6/scenarios/timeline-read.js
+k6 run perf-tests/k6/scenarios/timeline-read.ts
 
 # 全シナリオをまとめてsmoke実行する場合
 for s in timeline-read auth-login post-create likes-comments profile-read followers-list; do
   echo "=== $s ==="
-  k6 run -e MODE=smoke "perf-tests/k6/scenarios/$s.js"
+  k6 run -e MODE=smoke "perf-tests/k6/scenarios/$s.ts"
 done
 ```
 
@@ -90,16 +90,16 @@ frontend（5173）が起動していることを確認してから実行する�
 
 ### DBに残ったテストデータのリセット
 
-`post-create.js`（投稿を作成）・`likes-comments.js`（コメントを作成）を実行すると、ダミーデータがDBに残ったままになる（自動では消えない）。放置すると、後で普通に手動確認したときに`k6 load test post ...`のようなダミー投稿がタイムラインに混ざったり、[quality-check skill](../quality-check/SKILL.md)が警告する「DBの蓄積データによる見せかけの失敗」を自ら引き起こしたりする。
+`post-create.ts`（投稿を作成）・`likes-comments.ts`（コメントを作成）を実行すると、ダミーデータがDBに残ったままになる（自動では消えない）。放置すると、後で普通に手動確認したときに`k6 load test post ...`のようなダミー投稿がタイムラインに混ざったり、[quality-check skill](../quality-check/SKILL.md)が警告する「DBの蓄積データによる見せかけの失敗」を自ら引き起こしたりする。
 
-そのため、k6シナリオ（特に`post-create.js`・`likes-comments.js`）を実行した後は、**ユーザーに確認した上で**`perf-tests/seed/seed.sql`を再実行してリセットすることを提案する。`perf_user_%`の投稿を全削除→再投入する処理のため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、元の状態に戻る（DBを直接操作する破壊的操作なので、無断では実行しない）。
+そのため、k6シナリオ（特に`post-create.ts`・`likes-comments.ts`）を実行した後は、**ユーザーに確認した上で**`perf-tests/seed/seed.sql`を再実行してリセットすることを提案する。`perf_user_%`の投稿を全削除→再投入する処理のため、`ON DELETE CASCADE`でコメント・いいねも道連れに消え、元の状態に戻る（DBを直接操作する破壊的操作なので、無断では実行しない）。
 
 ```sh
 docker exec -i raisetechsns-db psql -v ON_ERROR_STOP=1 -U raisetechsns -d raisetechsns \
   < perf-tests/seed/seed.sql
 ```
 
-`timeline-read.js`・`auth-login.js`・`profile-read.js`・`followers-list.js`のみ実行した場合はデータを書き換えないため、このリセットは不要。
+`timeline-read.ts`・`auth-login.ts`・`profile-read.ts`・`followers-list.ts`のみ実行した場合はデータを書き換えないため、このリセットは不要。
 
 ### サーバーの停止
 
