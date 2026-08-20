@@ -1,0 +1,1 @@
+this is not an image file, used to test client-side image validation rejection

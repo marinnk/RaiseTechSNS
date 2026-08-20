@@ -19,3 +19,6 @@ out/
 
 ### パフォーマンステスト結果 ###
 perf-tests/results/
+
+### E2Eテスト結果 ###
+e2e/results/
