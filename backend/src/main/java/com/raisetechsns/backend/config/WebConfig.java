@@ -17,8 +17,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // allowCredentials(true)と組み合わせてワイルドカードを使うため、厳密一致のみの
+        // allowedOrigins ではなく allowedOriginPatterns を使う（SecurityConfigと揃える）
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173")
+                .allowedOriginPatterns("http://localhost:5173", "https://*.cloudfront.net")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                 .allowCredentials(true);
     }
