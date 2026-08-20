@@ -55,11 +55,15 @@ springdoc-openapiを導入し、Controllerのコードから実行時にAPI仕�
 **1.16 / 2026-08-14**  
 logstash-logback-encoderを導入し、構造化（JSON）ログ出力に対応した。環境変数`LOG_FORMAT`（`plain`/`json`）で出力形式を切り替え、全リクエストにリクエスト相関ID（`requestId`）を発行してMDC経由で全ログ行・レスポンスヘッダー（`X-Request-Id`）に伝播する`RequestLoggingFilter`を追加した。DataDog等の監視SaaSは未導入だが、将来導入する際にそのまま活用できる形でログ基盤を先行整備した。詳細な設計方針は[監視設計書](monitoring-design.md)を参照
 
+**1.17 / 2026-08-20**  
+本番環境のインフラ構成を確定した。EC2インスタンスを直接管理せず、フロントエンドはS3 + CloudFront、バックエンドAPIはECS Fargate（ECR・ALB）、データベースはRDSで構築する方針とし、詳細を[インフラ構成書](infrastructure-design.md)に切り出した
+
 ## 1. システム構成
 
 - フロントエンド（React）とバックエンド（Spring Boot）を分離した構成とする
 - フロントエンドはSPA（Single Page Application）として動作し、バックエンドが提供するREST APIと通信する
 - バックエンドはDBとやり取りし、フロントエンドにJSON形式でデータを返す
+- 本番環境のAWS構成（EC2を使わないS3 + CloudFront、ECS Fargate、RDS等）は[インフラ構成書](infrastructure-design.md)を参照
 
 構成イメージ:
 
