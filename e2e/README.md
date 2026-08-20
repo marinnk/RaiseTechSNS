@@ -1,16 +1,18 @@
 ## e2e
 
-RaiseTechSNSのE2Eテスト一式（Playwright）。**開発者が任意のタイミングで手動実行するもの**であり、
-`./gradlew check`・`npm run test`・`npm run lint`のいずれにも組み込まれていない（CI自体も未整備。
-[perf-tests/](../perf-tests/)と同じ扱い）。
+RaiseTechSNSのE2Eテスト一式（Playwright）。
 
 ### 2つのトラック
 
 - **[scenarios/](scenarios/)** — 機能シナリオテスト。`docs/functional-requirements.md`のUC01〜UC09
   （会員登録・ログイン・投稿・いいね・コメント・フォロー・プロフィール編集・ユーザー検索）＋
-  画面横断のハッピーパス・無限スクロール・画像バリデーションを実ブラウザで検証する
+  画面横断のハッピーパス・無限スクロール・画像バリデーションを実ブラウザで検証する。
+  PR作成時・mainへのpush時に[CI](../.github/workflows/ci.yml)で自動実行される
 - **[performance/](performance/)** — ブラウザパフォーマンステスト。ログイン・投稿・無限スクロール・
-  検索など、複数ステップにまたがる操作の体感時間（ms）を計測する
+  検索など、複数ステップにまたがる操作の体感時間（ms）を計測する。`./gradlew check`・
+  `npm run test`・`npm run lint`・CIのいずれにも組み込まれていない**開発者が任意のタイミングで
+  手動実行するもの**（[perf-tests/](../perf-tests/)と同じ扱い。しきい値ベースの計測はCI環境の
+  CPU競合で不安定になりやすいため）
 
 このアプリには`perf-tests/`（バックエンドAPI負荷試験のk6・タイムライン単体監査のLighthouse）が
 既にあるが、測定対象がどちらとも異なる（[perf-tests/README.md](../perf-tests/README.md)の
