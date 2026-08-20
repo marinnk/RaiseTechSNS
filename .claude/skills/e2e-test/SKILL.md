@@ -1,14 +1,17 @@
 ---
 name: e2e-test
-description: Run the on-demand Playwright E2E tests under e2e/ — functional scenario tests (UC01–UC09 user flows from docs/functional-requirements.md) and browser performance/timing tests (login, post submission, infinite scroll, search latency). Use whenever the user asks to run "E2Eテスト"/"E2Eテストを実行"/"Playwrightテスト"/an end-to-end or browser functional test, or asks to measure real-browser page/interaction timing (distinct from k6 load tests or Lighthouse audits under perf-tests/). Never run automatically (not part of CI/./gradlew check/npm run test) — only when explicitly requested.
+description: Run the Playwright E2E tests under e2e/ on demand — functional scenario tests (UC01–UC09 user flows from docs/functional-requirements.md; these also run automatically in CI on every PR/push to main) and browser performance/timing tests (login, post submission, infinite scroll, search latency; on-demand only, excluded from CI). Use whenever the user asks to run "E2Eテスト"/"E2Eテストを実行"/"Playwrightテスト"/an end-to-end or browser functional test, or asks to measure real-browser page/interaction timing (distinct from k6 load tests or Lighthouse audits under perf-tests/).
 ---
 
 # E2Eテスト（Playwright）の実行手順
 
 `e2e/`配下のPlaywrightテストを実行する手順。全体像・2トラックの違いは[e2e/README.md](../../../e2e/README.md)を参照。
 
-**これらは常にオンデマンド実行。** ユーザーから明示的に頼まれたときだけ実行し、`./gradlew check`・
-`npm run test`・`npm run lint`の一部として自動実行してはならない（[perf-test skill](../perf-test/SKILL.md)と同じ方針）。
+**このスキルはユーザーから明示的に頼まれたときの手動実行用。** scenariosトラックは
+[CI](../../../.github/workflows/ci.yml)でPR作成時・mainへのpush時にも自動実行されるが、
+ローカルで単発に確認したい場合や特定specだけ回したい場合はこのスキルを使う。performanceトラックは
+CI・`./gradlew check`・`npm run test`・`npm run lint`のいずれにも組み込まれておらず、常にオンデマンド
+実行（[perf-test skill](../perf-test/SKILL.md)と同じ方針）。
 
 ## 0. どのトラックを実行するか判断する
 
