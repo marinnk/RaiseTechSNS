@@ -22,3 +22,17 @@ perf-tests/results/
 
 ### E2Eテスト結果 ###
 e2e/results/
+
+### Terraform ###
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/crash.*.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/tfplan
+terraform/*.tfplan
+# .terraform.lock.hcl はプロバイダのバージョン固定のためコミット対象に残す

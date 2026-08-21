@@ -63,7 +63,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // allowCredentials(true)と組み合わせてワイルドカードを使うため、厳密一致のみの
+        // setAllowedOrigins ではなく setAllowedOriginPatterns を使う。本番相当の環境では
+        // CloudFrontのデフォルトドメイン（*.cloudfront.net）からアクセスするため許可パターンに含める
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173", "https://*.cloudfront.net"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
